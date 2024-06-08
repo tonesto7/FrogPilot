@@ -12,6 +12,7 @@ from openpilot.selfdrive.frogpilot.controls.frogpilot_planner import FrogPilotPl
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import backup_toggles, is_url_pingable
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_all_models, download_model, update_models
+from openpilot.selfdrive.frogpilot.controls.lib.theme_manager import ThemeManager
 
 OFFLINE = log.DeviceState.NetworkType.none
 
@@ -75,6 +76,7 @@ def frogpilot_thread():
   params_storage = Params("/persist/params")
 
   frogpilot_planner = FrogPilotPlanner()
+  theme_manager = ThemeManager()
 
   downloading_all_models = False
   downloading_model = False
@@ -141,6 +143,8 @@ def frogpilot_thread():
           continue
         else:
           threading.Thread(target=update_models, args=(is_release, params, params_memory,)).start()
+
+      theme_manager.update_holiday()
 
 def main():
   frogpilot_thread()
