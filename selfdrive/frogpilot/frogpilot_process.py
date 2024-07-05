@@ -2,6 +2,7 @@ import datetime
 import http.client
 import os
 import socket
+import threading
 import urllib.error
 import urllib.request
 
@@ -26,38 +27,47 @@ def github_pinged(url="https://github.com", timeout=5):
   except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected):
     return False
 
-def automatic_update_check(params):
+def automatic_update_check(started, params):
   update_available = params.get_bool("UpdaterFetchAvailable")
   update_ready = params.get_bool("UpdateAvailable")
   update_state_idle = params.get("UpdaterState", encoding='utf8') == "idle"
 
-  if update_ready:
+  if update_ready and not started:
     HARDWARE.reboot()
   elif update_available:
     os.system("pkill -SIGHUP -f system.updated.updated")
   elif update_state_idle:
     os.system("pkill -SIGUSR1 -f system.updated.updated")
 
-def time_checks(automatic_updates, deviceState, maps_downloaded, now, params, params_memory):
-  populate_models()
+def time_checks(automatic_updates, deviceState, now, started, params, params_memory):
+  if not github_pinged():
+    return
 
+  populate_models(params)
+
+  maps_downloaded = os.path.exists('/data/media/0/osm/offline')
   screen_off = deviceState.screenBrightnessPercent == 0
   wifi_connection = deviceState.networkType == WIFI
 
   if screen_off and wifi_connection or not maps_downloaded:
     if automatic_updates:
-      automatic_update_check(params)
+      automatic_update_check(started, params)
 
     update_maps(maps_downloaded, now, params, params_memory)
 
 def update_maps(maps_downloaded, now, params, params_memory):
+  maps_selected = params.get("MapsSelected")
+
+  if maps_selected is None:
+    return
+
   day = now.day
   is_first = day == 1
   is_Sunday = now.weekday() == 6
-  maps_selected = params.get("MapsSelected")
+
   schedule = params.get_int("PreferredSchedule")
 
-  if maps_downloaded and (maps_selected is None or schedule == 0 or (schedule == 1 and not is_Sunday) or (schedule == 2 and not is_first)):
+  if maps_downloaded and (schedule == 0 or (schedule == 1 and not is_Sunday) or (schedule == 2 and not is_first)):
     return
 
   suffix = "th" if 4 <= day <= 20 or 24 <= day <= 30 else ["st", "nd", "rd"][day % 10 - 1]
@@ -80,13 +90,13 @@ def frogpilot_thread(frogpilot_toggles):
   frogpilot_planner = FrogPilotPlanner()
   theme_manager = ThemeManager()
 
-  maps_downloaded = os.path.exists('/data/media/0/osm/offline') or params.get("MapsSelected") is None
+  run_time_checks = False
   time_validated = system_time_valid()
   update_toggles = False
 
   pm = messaging.PubMaster(['frogpilotPlan'])
-  sm = messaging.SubMaster(['carState', 'controlsState', 'deviceState', 'frogpilotCarControl', 'frogpilotCarState', 'frogpilotNavigation',
-                            'frogpilotPlan', 'longitudinalPlan', 'modelV2', 'radarState'],
+  sm = messaging.SubMaster(['carState', 'controlsState', 'deviceState', 'frogpilotCarControl', 'frogpilotCarState',
+                            'frogpilotNavigation', 'frogpilotPlan', 'longitudinalPlan', 'modelV2', 'radarState'],
                             poll='modelV2', ignore_avg_freq=['radarState'])
 
   while True:
@@ -102,7 +112,7 @@ def frogpilot_thread(frogpilot_toggles):
       frogpilot_planner.publish(sm, pm, frogpilot_toggles)
 
     if params_memory.get("ModelToDownload", encoding='utf-8') is not None:
-      download_model()
+      download_model(params_memory)
 
     if FrogPilotVariables.toggles_updated:
       update_toggles = True
@@ -118,13 +128,12 @@ def frogpilot_thread(frogpilot_toggles):
 
       update_toggles = False
 
-    if now.second == 0 or not time_validated:
-      if not started:
-        if github_pinged():
-          time_checks(frogpilot_toggles.automatic_updates, deviceState, maps_downloaded, now, params, params_memory)
-
-        if not maps_downloaded:
-          maps_downloaded = os.path.exists('/data/media/0/osm/offline') or params.get("OSMDownloadProgress") is not None or params.get("MapsSelected") is None
+    if now.second == 0:
+      run_time_checks = True
+    elif run_time_checks or not time_validated:
+      time_check = threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, now, started, params, params_memory,))
+      time_check.start()
+      run_time_checks = False
 
       if not time_validated:
         time_validated = system_time_valid()

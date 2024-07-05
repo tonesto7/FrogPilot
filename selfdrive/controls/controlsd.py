@@ -206,7 +206,6 @@ class Controls:
     self.speed_limit_changed = False
     self.update_toggles = False
     self.use_old_long = self.CP.carName == "hyundai"
-    self.vCruise69_alert_played = False
 
     self.display_timer = 0
     self.drive_distance = 0
@@ -963,7 +962,7 @@ class Controls:
         self.events.add(EventName.openpilotCrashed)
       self.openpilot_crashed_triggered = True
 
-    if self.frogpilot_toggles.random_events:
+    if self.frogpilot_toggles.random_events and not self.random_event_triggered:
       acceleration = CS.aEgo
 
       if not CS.gasPressed:
@@ -997,20 +996,16 @@ class Controls:
       conversion = 1 if self.is_metric else CV.KPH_TO_MPH
       v_cruise = max(self.v_cruise_helper.v_cruise_kph, self.v_cruise_helper.v_cruise_cluster_kph) * conversion
 
-      if 70 > v_cruise >= 69:
-        if self.sm.frame % 25 == 0:
-          if v_cruise == self.previous_v_cruise and not self.vCruise69_alert_played:
-            self.events.add(EventName.vCruise69)
-            self.vCruise69_alert_played = True
-          self.previous_v_cruise = v_cruise
-      else:
-        self.vCruise69_alert_played = False
+      if self.sm.frame % 25 == 0:
+        if 70 > v_cruise >= 69 and v_cruise != self.previous_v_cruise:
+          self.events.add(EventName.vCruise69)
+          self.random_event_triggered = True
         self.previous_v_cruise = v_cruise
 
     if self.frogpilot_toggles.speed_limit_alert and self.speed_limit_changed:
       self.events.add(EventName.speedLimitChanged)
 
-    if self.sm.frame * DT_CTRL == 5.5 and self.CP.lateralTuning.which() == 'torque' and self.CI.use_nnff:
+    if self.sm.frame * DT_CTRL == 5.5 and self.CP.lateralTuning.which() == "torque" and self.CI.use_nnff:
       self.events.add(EventName.torqueNNLoad)
 
     if self.sm['frogpilotCarState'].trafficModeActive != self.previous_traffic_mode:
@@ -1028,9 +1023,8 @@ class Controls:
   def update_frogpilot_variables(self, CS):
     driving_gear = CS.gearShifter not in (GearShifter.neutral, GearShifter.park, GearShifter.reverse, GearShifter.unknown)
 
-    self.always_on_lateral_active |= CS.cruiseState.enabled or self.frogpilot_toggles.always_on_lateral_main
-    self.always_on_lateral_active &= CS.cruiseState.available
-    self.always_on_lateral_active &= self.frogpilot_toggles.always_on_lateral
+    self.always_on_lateral_active |= self.frogpilot_toggles.always_on_lateral_main or CS.cruiseState.enabled
+    self.always_on_lateral_active &= self.frogpilot_toggles.always_on_lateral and CS.cruiseState.available
     self.always_on_lateral_active &= driving_gear
     self.always_on_lateral_active &= self.speed_check
     self.always_on_lateral_active &= not (self.frogpilot_toggles.always_on_lateral_lkas and self.sm['frogpilotCarState'].alwaysOnLateralDisabled)
@@ -1063,7 +1057,8 @@ class Controls:
           override_value = 0 if conditional_status in {1, 2, 3, 4, 5, 6} else 3 if conditional_status >= 7 else 4
           self.params_memory.put_int("CEStatus", override_value)
         else:
-          self.params.put_bool_nonblocking("ExperimentalMode", not self.experimental_mode)
+          self.experimental_mode = not self.experimental_mode
+          self.params.put_bool_nonblocking("ExperimentalMode", self.experimental_mode)
 
     self.previously_enabled |= (self.enabled or self.always_on_lateral_active) and CS.vEgo > CRUISING_SPEED
     self.previously_enabled &= driving_gear

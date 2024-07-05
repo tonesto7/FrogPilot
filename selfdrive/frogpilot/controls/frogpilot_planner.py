@@ -89,8 +89,8 @@ class FrogPilotPlanner:
 
     check_lane_width = frogpilot_toggles.adjacent_lanes or frogpilot_toggles.blind_spot_path or frogpilot_toggles.lane_detection
     if check_lane_width and v_ego >= frogpilot_toggles.minimum_lane_change_speed:
-      self.lane_width_left = float(calculate_lane_width(modelData.laneLines[0], modelData.laneLines[1], modelData.roadEdges[0]))
-      self.lane_width_right = float(calculate_lane_width(modelData.laneLines[3], modelData.laneLines[2], modelData.roadEdges[1]))
+      self.lane_width_left = calculate_lane_width(modelData.laneLines[0], modelData.laneLines[1], modelData.roadEdges[0])
+      self.lane_width_right = calculate_lane_width(modelData.laneLines[3], modelData.laneLines[2], modelData.roadEdges[1])
     else:
       self.lane_width_left = 0
       self.lane_width_right = 0
@@ -102,7 +102,7 @@ class FrogPilotPlanner:
       self.lead_departing = False
 
     self.model_length = modelData.position.x[TRAJECTORY_SIZE - 1]
-    self.road_curvature = abs(float(calculate_road_curvature(modelData, v_ego)))
+    self.road_curvature = calculate_road_curvature(modelData, v_ego)
 
     if frogpilot_toggles.random_events:
       self.taking_curve_quickly = v_ego > (1 / self.road_curvature)**0.5 * 2 > CRUISING_SPEED * 2 and abs(carState.steeringAngleDeg) > 30

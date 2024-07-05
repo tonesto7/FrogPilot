@@ -428,8 +428,8 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         QStringList deletableModelLabels;
         for (int i = 0; i < availableModels.size(); ++i) {
           QString modelFileName = availableModels[i] + ".thneed";
-          if (existingModelFiles.contains(modelFileName) && modelFileName != QString::fromStdString(currentModel)) {
-            QString readableName = modelLabels[i];
+          QString readableName = modelLabels[i];
+          if (existingModelFiles.contains(modelFileName) && modelFileName != QString::fromStdString(currentModel) && !readableName.contains(" (Default)")) {
             deletableModelLabels.append(readableName);
             labelToFileMap[readableName] = modelFileName;
           }
@@ -468,6 +468,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         QMap<QString, QString> labelToModelMap;
         QStringList downloadableModelLabels;
         QStringList existingModelFiles = modelDir.entryList({"*.thneed"}, QDir::Files);
+
         for (int i = 0; i < availableModels.size(); ++i) {
           QString modelFileName = availableModels.at(i) + ".thneed";
           if (!existingModelFiles.contains(modelFileName)) {
@@ -483,65 +484,42 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         if (!modelToDownload.isEmpty()) {
           QString selectedModelValue = labelToModelMap.value(modelToDownload);
           paramsMemory.put("ModelToDownload", selectedModelValue.toStdString());
+          paramsMemory.put("ModelDownloadProgress", "0%");
+          downloadModelBtn->setValue(tr("Downloading %1...").arg(modelToDownload.remove(QRegularExpression("[🗺️👀📡]")).trimmed()));
 
           deleteModelBtn->setEnabled(false);
           downloadModelBtn->setEnabled(false);
           selectModelBtn->setEnabled(false);
 
-          QTimer *failureTimer = new QTimer(this);
-          failureTimer->setSingleShot(true);
-
           QTimer *progressTimer = new QTimer(this);
           progressTimer->setInterval(100);
 
-          connect(failureTimer, &QTimer::timeout, this, [=]() {
-            deleteModelBtn->setEnabled(true);
-            downloadModelBtn->setEnabled(true);
-            selectModelBtn->setEnabled(true);
-
-            downloadModelBtn->setValue(tr("Download failed..."));
-            paramsMemory.remove("ModelDownloadProgress");
-            paramsMemory.remove("ModelToDownload");
-
-            progressTimer->stop();
-            progressTimer->deleteLater();
-
-            QTimer::singleShot(3000, this, [this]() {
-              downloadModelBtn->setValue("");
-            });
-          });
-
           connect(progressTimer, &QTimer::timeout, this, [=]() {
-            static int lastProgress = -1;
-            int progress = paramsMemory.getInt("ModelDownloadProgress");
+            QString progress = QString::fromStdString(paramsMemory.get("ModelDownloadProgress"));
 
-            if (progress == lastProgress) {
-              if (!failureTimer->isActive()) {
-                failureTimer->start(30000);
-              }
-            } else {
-              lastProgress = progress;
-              downloadModelBtn->setValue(QString::number(progress) + "%");
-              failureTimer->stop();
+            if (progress != "0%") {
+              downloadModelBtn->setValue(progress);
+            }
 
-              if (progress == 100) {
-                deleteModelBtn->setEnabled(true);
-                downloadModelBtn->setEnabled(true);
-                selectModelBtn->setEnabled(true);
+            if (progress == "Downloaded!" || progress.contains("Failed", Qt::CaseInsensitive)) {
+              deleteModelBtn->setEnabled(true);
+              downloadModelBtn->setEnabled(true);
+              selectModelBtn->setEnabled(true);
 
-                downloadModelBtn->setValue(tr("Downloaded!"));
-                paramsMemory.remove("ModelDownloadProgress");
-                paramsMemory.remove("ModelToDownload");
+              downloadModelBtn->setValue(progress);
+              paramsMemory.remove("ModelDownloadProgress");
+              paramsMemory.remove("ModelToDownload");
 
-                progressTimer->stop();
-                progressTimer->deleteLater();
+              progressTimer->stop();
+              progressTimer->deleteLater();
 
-                QTimer::singleShot(3000, this, [this]() {
-                  if (paramsMemory.get("ModelToDownload").empty()) {
-                    downloadModelBtn->setValue("");
-                  }
-                });
-              }
+              int delay = progress.contains("Failed", Qt::CaseInsensitive) ? 10000 : 3000;
+
+              QTimer::singleShot(delay, this, [this, progress]() {
+                if (paramsMemory.get("ModelToDownload").empty() || progress.contains("Failed", Qt::CaseInsensitive)) {
+                  downloadModelBtn->setValue("");
+                }
+              });
             }
           });
           progressTimer->start();

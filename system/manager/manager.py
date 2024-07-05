@@ -23,7 +23,7 @@ from openpilot.common.time import system_time_valid
 from openpilot.system.version import get_build_metadata, terms_version, training_version
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import FrogPilotFunctions
-from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, delete_deprecated_models
+from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, update_models
 
 
 def frogpilot_boot_functions(frogpilot_functions):
@@ -44,7 +44,7 @@ def frogpilot_boot_functions(frogpilot_functions):
     return
 
   try:
-    delete_deprecated_models()
+    update_models(Params())
   except subprocess.CalledProcessError as e:
     print(f"Failed to delete deprecated models. Error: {e}")
     return

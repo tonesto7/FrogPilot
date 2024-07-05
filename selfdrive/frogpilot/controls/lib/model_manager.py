@@ -1,133 +1,184 @@
-import http.client
 import os
-import socket
-import time
-import urllib.error
+import requests
 import urllib.request
 
-from openpilot.common.params import Params
 from openpilot.system.version import get_build_metadata
 
-VERSION = 'v3' if get_build_metadata().channel == "FrogPilot" else 'v4'
+VERSION = "v3" if get_build_metadata().channel == "FrogPilot" else "v4"
 
-GITHUB_REPOSITORY_URL = 'https://raw.githubusercontent.com/FrogAi/FrogPilot-Resources/'
-GITLAB_REPOSITORY_URL = 'https://gitlab.com/FrogAi/FrogPilot-Resources/-/raw/'
+GITHUB_REPOSITORY_URL = "https://raw.githubusercontent.com/FrogAi/FrogPilot-Resources/"
+GITLAB_REPOSITORY_URL = "https://gitlab.com/FrogAi/FrogPilot-Resources/-/raw/"
 
 DEFAULT_MODEL = "north-dakota-v2"
 DEFAULT_MODEL_NAME = "North Dakota V2 (Default)"
-MODELS_PATH = '/data/models'
+MODELS_PATH = "/data/models"
 
 NAVIGATION_MODELS = {"certified-herbalist", "duck-amigo", "los-angeles", "recertified-herbalist"}
 RADARLESS_MODELS = {"radical-turtle"}
 
-params = Params()
-params_memory = Params("/dev/shm/params")
-
-def ping_url(url, timeout=5):
+def is_url_pingable(url):
   try:
-    urllib.request.urlopen(url, timeout=timeout)
-    return True
-  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected):
+    response = requests.head(url, timeout=5)
+    return response.status_code == 200
+  except (requests.ConnectionError, requests.RequestException, requests.Timeout):
     return False
 
-def determine_url(model, file_type):
-  if ping_url(GITHUB_REPOSITORY_URL):
-    return f"{GITHUB_REPOSITORY_URL}/Models/{model}{file_type}"
-  else:
-    return f"{GITLAB_REPOSITORY_URL}/Models/{model}{file_type}"
+def get_repository_url():
+  if is_url_pingable("https://github.com"):
+    return GITHUB_REPOSITORY_URL
 
-def delete_deprecated_models():
-  populate_models()
+  if is_url_pingable("https://gitlab.com"):
+    return GITLAB_REPOSITORY_URL
 
-  model_name = params.get("ModelName", encoding='utf-8')
-  if model_name and "(Default)" in model_name and model_name != DEFAULT_MODEL_NAME:
-    params.put("ModelName", model_name.replace(" (Default)", ""))
+  return None
 
-  current_model = params.get("Model", encoding='utf-8')
-  current_model_path = os.path.join(MODELS_PATH, f"{current_model}.thneed")
-  if not os.path.exists(current_model_path):
-    params_memory.put("ModelToDownload", current_model)
+def delete_file(file):
+  if os.path.exists(file):
+    os.remove(file)
 
-  available_models = params.get("AvailableModels", encoding='utf-8').split(',')
-  if current_model not in available_models or not os.path.exists(current_model_path):
-    params.put("Model", DEFAULT_MODEL)
-    params.put("ModelName", DEFAULT_MODEL_NAME)
+def download_file(destination, url, params_memory):
+  try:
+    with requests.get(url, stream=True, timeout=10) as r:
+      r.raise_for_status()
+      total_size = get_remote_file_size(url)
+      downloaded_size = 0
 
-  for model_file in os.listdir(MODELS_PATH):
-    if model_file.endswith('.thneed') and model_file[:-7] not in available_models:
-      os.remove(os.path.join(MODELS_PATH, model_file))
+      with open(destination, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=8192):
+          if chunk:
+            f.write(chunk)
+            downloaded_size += len(chunk)
+            progress = (downloaded_size / total_size) * 100
+            if progress != 100:
+              params_memory.put("ModelDownloadProgress", f"{progress:.0f}%")
+            else:
+              params_memory.put("ModelDownloadProgress", "Verifying authenticity...")
 
-def download_model():
+  except requests.HTTPError as http_error:
+    status_code = http_error.response.status_code
+    error_message = f"Failed: Server error ({status_code})"
+    print(f"HTTP error occurred: {http_error} (Status code: {status_code})")
+    params_memory.put("ModelDownloadProgress", error_message)
+    delete_file(destination)
+
+  except requests.ConnectionError as connection_error:
+    error_message = "Failed: Connection dropped..."
+    print(f"Connection error occurred: {connection_error}")
+    params_memory.put("ModelDownloadProgress", error_message)
+    delete_file(destination)
+
+  except requests.Timeout as timeout_error:
+    error_message = "Failed: Download timed out..."
+    print(f"Timeout error occurred: {timeout_error}")
+    params_memory.put("ModelDownloadProgress", error_message)
+    delete_file(destination)
+
+  except requests.RequestException as request_error:
+    error_message = "Failed: Network request error. Check connection."
+    print(f"Request error occurred: {request_error}")
+    params_memory.put("ModelDownloadProgress", error_message)
+    delete_file(destination)
+
+  except Exception as e:
+    error_message = "Failed: Unexpected error."
+    print(f"An unexpected error occurred: {e}")
+    params_memory.put("ModelDownloadProgress", error_message)
+    delete_file(destination)
+
+def get_remote_file_size(url):
+  try:
+    response = requests.head(url, timeout=10)
+    response.raise_for_status()
+    return int(response.headers.get('Content-Length', 0))
+
+  except requests.RequestException as request_error:
+    print(f"Error fetching file size: {request_error}")
+    return None
+
+def verify_download(file_path, model_url):
+  remote_file_size = get_remote_file_size(model_url)
+
+  if remote_file_size is None:
+    return False
+
+  local_file_size = os.path.getsize(file_path)
+  return remote_file_size == local_file_size
+
+def download_model(params_memory):
   model = params_memory.get("ModelToDownload", encoding='utf-8')
   model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
 
   if os.path.exists(model_path):
-    print(f"Model {model} already exists, skipping download.")
+    error_message = f"Model {model} already exists, skipping download..."
+    print(error_message)
+    params_memory.put("ModelDownloadProgress", "Model already exists...")
     params_memory.remove("ModelToDownload")
     return
 
-  url = determine_url(model, '.thneed')
+  repo_url = get_repository_url()
+  if repo_url:
+    model_url = f"{repo_url}Models/{model}.thneed"
+    download_file(model_path, model_url, params_memory)
 
-  for attempt in range(3):
-    try:
-      total_size = get_total_size(url)
-      download_file(url, model_path, total_size)
-      verify_download(model, model_path)
-      return
+    if verify_download(model_path, model_url):
+      success_message = f"Model {model} downloaded and verified successfully!"
+      print(success_message)
+      params_memory.put("ModelDownloadProgress", "Downloaded!")
 
-    except Exception as e:
-      handle_download_error(model_path, attempt, e)
-      time.sleep(2**attempt)
+    else:
+      print(f"Model {model} verification failed. The file might be corrupted. Redownloading...")
+      delete_file(model_path)
+      download_file(model_path, model_url, params_memory)
 
-def get_total_size(url):
-  try:
-    return int(urllib.request.urlopen(url).getheader('Content-Length'))
-  except Exception as e:
-    print(f"Failed to get total size. Error: {e}")
-    raise
+      if verify_download(model_path, model_url):
+        print(f"Model {model} redownloaded and verified successfully.")
+      else:
+        print(f"Model {model} redownload verification failed. The file might be corrupted.")
 
-def download_file(url, path, total_size):
-  try:
-    with urllib.request.urlopen(url) as response:
-      with open(path, 'wb') as output:
-        for chunk in iter(lambda: response.read(8192), b''):
-          output.write(chunk)
-          progress = output.tell()
-          params_memory.put_int("ModelDownloadProgress", int((progress / total_size) * 100))
-        os.fsync(output)
-
-  except Exception as e:
-    print(f"Error downloading file: {e}")
-    raise
-
-def verify_download(model, model_path):
-  expected_size = os.path.getsize(model_path)
-  actual_size = os.path.getsize(model_path)
-
-  if expected_size == actual_size:
-    print(f"Successfully downloaded the {model} model!")
   else:
-    raise Exception("Downloaded file size does not match expected size.")
+    error_message = "Failed: Github and Gitlab are offline..."
+    print(error_message)
+    params_memory.put("ModelDownloadProgress", error_message)
 
-def handle_download_error(model_path, attempt, exception):
-  print(f"Attempt {attempt + 1} failed with error: {exception}. Retrying...")
+def populate_models(params):
+  base_url = get_repository_url()
 
-  if os.path.exists(model_path):
-    os.remove(model_path)
+  if base_url is None:
+    print("Cannot determine base URL. Exiting...")
+    return
 
-  if attempt == 2:
-    print(f"Failed to download the model after 3 attempts.")
+  url = f"{base_url}Versions/model_names_{VERSION}.txt"
 
-def populate_models():
-  url = f"{GITHUB_REPOSITORY_URL}Versions/model_names_{VERSION}.txt" if ping_url(GITHUB_REPOSITORY_URL) else f"{GITLAB_REPOSITORY_URL}Versions/model_names_{VERSION}.txt"
   try:
     with urllib.request.urlopen(url) as response:
       model_info = [line.decode('utf-8').strip().split(' - ') for line in response.readlines()]
-    update_params(model_info)
+    update_params(model_info, params)
+
   except Exception as e:
     print(f"Failed to update models list. Error: {e}")
 
-def update_params(model_info):
+def update_params(model_info, params):
   params.put("AvailableModels", ','.join(model[0] for model in model_info))
   params.put("AvailableModelsNames", ','.join(model[1] for model in model_info))
   print("Models list updated successfully.")
+
+def update_models(params):
+  populate_models(params)
+
+  model_name = params.get("ModelName", encoding='utf-8')
+  if "(Default)" in model_name and model_name != DEFAULT_MODEL_NAME:
+    params.put("ModelName", model_name.replace(" (Default)", ""))
+
+  available_models = params.get("AvailableModels", encoding='utf-8').split(',')
+  for model_file in os.listdir(MODELS_PATH):
+    if model_file.endswith('.thneed') and model_file[:-7] not in available_models:
+      delete_file(os.path.join(MODELS_PATH, model_file))
+
+  current_model = params.get("Model", encoding='utf-8')
+  current_model_path = os.path.join(MODELS_PATH, f"{current_model}.thneed")
+  if not os.path.exists(current_model_path):
+    if current_model in available_models:
+      params_memory.put("ModelToDownload", current_model)
+    else:
+      params.put("Model", DEFAULT_MODEL)
+      params.put("ModelName", DEFAULT_MODEL_NAME)

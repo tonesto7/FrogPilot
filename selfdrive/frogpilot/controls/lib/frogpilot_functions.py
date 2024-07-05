@@ -5,13 +5,14 @@ import numpy as np
 import os
 import shutil
 import subprocess
+import threading
+import time
 
 from openpilot.common.basedir import BASEDIR
-from openpilot.common.params_pyx import Params, UnknownKeyName
+from openpilot.common.params_pyx import Params, ParamKeyType, UnknownKeyName
 from openpilot.system.hardware import HARDWARE
 from openpilot.system.version import get_build_metadata
 
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import THRESHOLD
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import MODELS_PATH
 
 def calculate_lane_width(lane, current_lane, road_edge):
@@ -25,14 +26,14 @@ def calculate_lane_width(lane, current_lane, road_edge):
   distance_to_lane = np.mean(np.abs(current_y - lane_y_interp))
   distance_to_road_edge = np.mean(np.abs(current_y - road_edge_y_interp))
 
-  return min(distance_to_lane, distance_to_road_edge)
+  return float(min(distance_to_lane, distance_to_road_edge))
 
 # Credit goes to Pfeiferj!
 def calculate_road_curvature(modelData, v_ego):
   orientation_rate = np.array(np.abs(modelData.orientationRate.z))
   velocity = np.array(modelData.velocity.x)
   max_pred_lat_acc = np.amax(orientation_rate * velocity)
-  return max_pred_lat_acc / (v_ego**2)
+  return abs(float(max_pred_lat_acc / (v_ego**2)))
 
 def run_cmd(cmd, success_msg, fail_msg):
   try:
@@ -43,13 +44,23 @@ def run_cmd(cmd, success_msg, fail_msg):
   except Exception as e:
     print(f"Unexpected error occurred: {e}")
 
+def update_frogpilot_toggles():
+  def update_params():
+    params_memory = Params("/dev/shm/params")
+
+    params_memory.put_bool("FrogPilotTogglesUpdated", True)
+    time.sleep(1)
+    params_memory.put_bool("FrogPilotTogglesUpdated", False)
+
+  thread = threading.Thread(target=update_params)
+  thread.start()
+
 class MovingAverageCalculator:
   def __init__(self):
-    self.data = []
-    self.total = 0
+    self.reset_data()
 
   def add_data(self, value):
-    if len(self.data) == THRESHOLD:
+    if len(self.data) == 5:
       self.total -= self.data.pop(0)
     self.data.append(value)
     self.total += value
@@ -91,9 +102,10 @@ class FrogPilotFunctions:
     params_storage = Params("/persist/params")
 
     for key in params.all_keys():
-      value = params.get(key)
-      if value is not None:
-        params_storage.put(key, value)
+      if params.get_key_type(key) & ParamKeyType.FROGPILOT_STORAGE:
+        value = params.get(key)
+        if value is not None:
+          params_storage.put(key, value)
 
     toggle_backup_directory = "/data/toggle_backups"
     os.makedirs(toggle_backup_directory, exist_ok=True)
@@ -136,7 +148,7 @@ class FrogPilotFunctions:
     if install_date and install_date.decode('utf-8').startswith("November 21, 2023"):
       params.remove("InstallDate")
 
-    version = 5
+    version = 6
 
     try:
       if params_storage.check_key("ParamConversionVersion"):
@@ -147,37 +159,8 @@ class FrogPilotFunctions:
     except UnknownKeyName:
       pass
 
-    def onroad_uploads():
-      params.put("DeviceManagement", "True")
-      params.put("NoUploads", "True")
-
-    convert_param("DisableOnroadUploads", onroad_uploads)
-
-    param_mappings = {
-      "FrogPilotDrives": (params.get_int, params_tracking.put_int),
-      "FrogPilotKilometers": (params.get_float, params_tracking.put_float),
-      "FrogPilotMinutes": (params.get_float, params_tracking.put_float)
-    }
-    convert_param_mappings(param_mappings, params, 0)
-
-    param_storage_mappings = {
-      "FrogPilotDrives": (params_storage.get_int, params_tracking.put_int),
-      "FrogPilotKilometers": (params_storage.get_float, params_tracking.put_float),
-      "FrogPilotMinutes": (params_storage.get_float, params_tracking.put_float)
-    }
-    convert_param_mappings(param_storage_mappings, params_storage, 0)
-
-    params.remove("CarMake")
-    params.remove("CarModel")
-    params.remove("ForceFingerprint")
-
     print("Params successfully converted!")
     params_storage.put_int("ParamConversionVersion", version)
-
-    original_boot_logo_location = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/bg.jpg'
-    original_boot_logo_save_location = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/original_bg.jpg'
-    shutil.copy(original_boot_logo_location, original_boot_logo_save_location)
-    print("Successfully replaced original_bg.jpg with bg.jpg.")
 
   @classmethod
   def setup_frogpilot(cls):
@@ -189,14 +172,19 @@ class FrogPilotFunctions:
 
     frogpilot_boot_logo = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/frogpilot_boot_logo.png'
     boot_logo_location = '/usr/comma/bg.jpg'
-    boot_logo_save_location = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/original_bg.jpg'
+    #boot_logo_save_location = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/original_bg.jpg'
 
     remount_root = ['sudo', 'mount', '-o', 'remount,rw', '/']
     run_cmd(remount_root, "File system remounted as read-write.", "Failed to remount file system.")
 
-    if not os.path.exists(boot_logo_save_location):
-      shutil.copy(boot_logo_location, boot_logo_save_location)
-      print("Successfully backed up the original boot logo.")
+    #if not os.path.exists(boot_logo_save_location):
+      #shutil.copy(boot_logo_location, boot_logo_save_location)
+      #print("Successfully backed up the original boot logo.")
+
+    original_boot_logo_location = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/bg.jpg'
+    original_boot_logo_save_location = f'{BASEDIR}/selfdrive/frogpilot/assets/other_images/original_bg.jpg'
+    shutil.copy(original_boot_logo_location, original_boot_logo_save_location)
+    print("Successfully replaced original_bg.jpg with bg.jpg.")
 
     if not filecmp.cmp(frogpilot_boot_logo, boot_logo_location, shallow=False):
       copy_cmd = ['sudo', 'cp', frogpilot_boot_logo, boot_logo_location]
