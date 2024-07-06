@@ -41,7 +41,7 @@ def capture_tmux() -> None:
           with sentry_sdk.configure_scope() as scope:
             bind_user()
             scope.set_extra("tmux_log", "\n".join(lines))
-            sentry_sdk.capture_message("Captured tmux log", level='error')
+            sentry_sdk.capture_message("User's UI crashed", level='error')
             sentry_sdk.flush()
           break
         time.sleep(60)
