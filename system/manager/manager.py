@@ -222,6 +222,7 @@ def manager_init(frogpilot_functions) -> None:
     ("ModelSelector", "0"),
     ("ModelUI", "1"),
     ("MTSCEnabled", "1"),
+    ("NewLongAPI", "0"),
     ("NNFF", "1"),
     ("NNFFLite", "1"),
     ("NoLogging", "0"),
