@@ -831,9 +831,9 @@ void AnnotatedCameraWidget::initializeFrogPilotWidgets() {
   // Initialize the timer for the screen recorder
   QTimer *recordTimer = new QTimer(this);
   QObject::connect(recordTimer, &QTimer::timeout, this, [this] {
-    recorder->update_screen();
+    recorder->updateScreen();
   });
-  recordTimer->start(1000 / UI_FREQ);
+  recordTimer->start(2000 / UI_FREQ);
 }
 
 void AnnotatedCameraWidget::paintFrogPilotWidgets(QPainter &painter, const UIScene &scene) {

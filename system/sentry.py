@@ -36,9 +36,6 @@ def capture_tmux() -> None:
     lines = result.stdout.decode('utf-8').splitlines()
 
     if lines:
-      if lines[0].strip() == "waiting for weston":
-        return
-
       while True:
         if is_url_pingable("https://sentry.io"):
           with sentry_sdk.configure_scope() as scope:

@@ -1151,6 +1151,14 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.firefox, 4.),
   },
 
+  EventName.hal9000: {
+    ET.WARNING: Alert(
+      "I'm sorry Dave",
+      "I'm afraid I can't do that...",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.HIGH, VisualAlert.none, AudibleAlert.hal9000, 4.),
+  },
+
   EventName.openpilotCrashedRandomEvents: {
     ET.PERMANENT: Alert(
       "openpilot crashed 💩",

@@ -76,6 +76,8 @@ class ManagerProcess(ABC):
   watchdog_seen = False
   shutting_down = False
 
+  started_time = 0
+
   @abstractmethod
   def prepare(self) -> None:
     pass
@@ -101,10 +103,11 @@ class ManagerProcess(ABC):
       pass
 
     dt = time.monotonic() - self.last_watchdog_time / 1e9
+    self.started_time = (self.started_time + 1) if started else 0
 
     if dt > self.watchdog_max_dt:
       if self.watchdog_seen and ENABLE_WATCHDOG:
-        if started:
+        if self.started_time > 1000:
           sentry.capture_tmux()
         cloudlog.error(f"Watchdog timeout for {self.name} (exitcode {self.proc.exitcode}) restarting ({started=})")
         self.restart()

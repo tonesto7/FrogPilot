@@ -197,6 +197,8 @@ class Controls:
     self.drive_added = False
     self.fcw_random_event_triggered = False
     self.holiday_theme_alerted = False
+    self.no_entry_alert_played = False
+    self.no_entry_alert_triggered = False
     self.onroad_distance_pressed = False
     self.openpilot_crashed_triggered = False
     self.previous_traffic_mode = False
@@ -564,6 +566,7 @@ class Controls:
       if self.events.contains(ET.ENABLE):
         if self.events.contains(ET.NO_ENTRY):
           self.current_alert_types.append(ET.NO_ENTRY)
+          self.no_entry_alert_triggered = True
 
         else:
           if self.events.contains(ET.PRE_ENABLE):
@@ -991,6 +994,11 @@ class Controls:
       if self.sm['frogpilotPlan'].takingCurveQuickly:
         self.events.add(EventName.dejaVuCurve)
         self.params_memory.put_int("CurrentRandomEvent", 5)
+        self.random_event_triggered = True
+
+      if self.no_entry_alert_triggered and not self.no_entry_alert_played:
+        self.events.add(EventName.hal9000)
+        self.no_entry_alert_played = True
         self.random_event_triggered = True
 
       conversion = 1 if self.is_metric else CV.KPH_TO_MPH
