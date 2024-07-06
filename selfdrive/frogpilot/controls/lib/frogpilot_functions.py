@@ -1,19 +1,23 @@
 import datetime
 import filecmp
 import glob
+import http.client
 import numpy as np
 import os
 import shutil
+import socket
 import subprocess
 import threading
 import time
+import urllib.error
+import urllib.request
 
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params_pyx import Params, ParamKeyType, UnknownKeyName
 from openpilot.system.hardware import HARDWARE
 from openpilot.system.version import get_build_metadata
 
-from openpilot.selfdrive.frogpilot.controls.lib.model_manager import MODELS_PATH
+MODELS_PATH = "/data/models"
 
 def calculate_lane_width(lane, current_lane, road_edge):
   current_x, current_y = np.array(current_lane.x), np.array(current_lane.y)
@@ -34,6 +38,13 @@ def calculate_road_curvature(modelData, v_ego):
   velocity = np.array(modelData.velocity.x)
   max_pred_lat_acc = np.amax(orientation_rate * velocity)
   return abs(float(max_pred_lat_acc / (v_ego**2)))
+
+def is_url_pingable(url, timeout=5):
+  try:
+    urllib.request.urlopen(url, timeout=timeout)
+    return True
+  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected):
+    return False
 
 def run_cmd(cmd, success_msg, fail_msg):
   try:

@@ -1,10 +1,6 @@
 import datetime
-import http.client
 import os
-import socket
 import threading
-import urllib.error
-import urllib.request
 
 from cereal import log, messaging
 from openpilot.common.params import Params
@@ -13,19 +9,12 @@ from openpilot.common.time import system_time_valid
 from openpilot.system.hardware import HARDWARE
 
 from openpilot.selfdrive.frogpilot.controls.frogpilot_planner import FrogPilotPlanner
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import FrogPilotFunctions
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import FrogPilotFunctions, is_url_pingable
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
-from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_model, populate_models
+from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_model, update_models
 from openpilot.selfdrive.frogpilot.controls.lib.theme_manager import ThemeManager
 
 WIFI = log.DeviceState.NetworkType.wifi
-
-def github_pinged(url="https://github.com", timeout=5):
-  try:
-    urllib.request.urlopen(url, timeout=timeout)
-    return True
-  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected):
-    return False
 
 def automatic_update_check(started, params):
   update_available = params.get_bool("UpdaterFetchAvailable")
@@ -40,22 +29,20 @@ def automatic_update_check(started, params):
     os.system("pkill -SIGUSR1 -f system.updated.updated")
 
 def time_checks(automatic_updates, deviceState, now, started, params, params_memory):
-  if not github_pinged():
+  if not is_url_pingable("https://github.com"):
     return
 
-  populate_models(params)
-
-  maps_downloaded = os.path.exists('/data/media/0/osm/offline')
   screen_off = deviceState.screenBrightnessPercent == 0
   wifi_connection = deviceState.networkType == WIFI
 
-  if screen_off and wifi_connection or not maps_downloaded:
+  if screen_off and wifi_connection:
     if automatic_updates:
       automatic_update_check(started, params)
 
-    update_maps(maps_downloaded, now, params, params_memory)
+  update_maps(now, params, params_memory)
+  update_models(params, False)
 
-def update_maps(maps_downloaded, now, params, params_memory):
+def update_maps(now, params, params_memory):
   maps_selected = params.get("MapsSelected")
 
   if maps_selected is None:
@@ -64,8 +51,9 @@ def update_maps(maps_downloaded, now, params, params_memory):
   day = now.day
   is_first = day == 1
   is_Sunday = now.weekday() == 6
-
   schedule = params.get_int("PreferredSchedule")
+
+  maps_downloaded = os.path.exists('/data/media/0/osm/offline')
 
   if maps_downloaded and (schedule == 0 or (schedule == 1 and not is_Sunday) or (schedule == 2 and not is_first)):
     return

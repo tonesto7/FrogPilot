@@ -496,12 +496,13 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
 
           connect(progressTimer, &QTimer::timeout, this, [=]() {
             QString progress = QString::fromStdString(paramsMemory.get("ModelDownloadProgress"));
+            bool downloadFailed = progress.contains(QRegularExpression("exists|Failed|offline", QRegularExpression::CaseInsensitiveOption));
 
             if (progress != "0%") {
               downloadModelBtn->setValue(progress);
             }
 
-            if (progress == "Downloaded!" || progress.contains("Failed", Qt::CaseInsensitive)) {
+            if (progress == "Downloaded!" || downloadFailed) {
               deleteModelBtn->setEnabled(true);
               downloadModelBtn->setEnabled(true);
               selectModelBtn->setEnabled(true);
@@ -513,10 +514,10 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
               progressTimer->stop();
               progressTimer->deleteLater();
 
-              int delay = progress.contains("Failed", Qt::CaseInsensitive) ? 10000 : 3000;
+              int delay = downloadFailed ? 10000 : 3000;
 
-              QTimer::singleShot(delay, this, [this, progress]() {
-                if (paramsMemory.get("ModelToDownload").empty() || progress.contains("Failed", Qt::CaseInsensitive)) {
+              QTimer::singleShot(delay, this, [=]() {
+                if (paramsMemory.get("ModelToDownload").empty() || downloadFailed) {
                   downloadModelBtn->setValue("");
                 }
               });

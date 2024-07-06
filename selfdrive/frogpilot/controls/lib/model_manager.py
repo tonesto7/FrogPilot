@@ -1,8 +1,15 @@
+import http.client
 import os
 import requests
+import shutil
+import socket
+import urllib.error
 import urllib.request
 
+from openpilot.common.basedir import BASEDIR
 from openpilot.system.version import get_build_metadata
+
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH, is_url_pingable
 
 VERSION = "v3" if get_build_metadata().channel == "FrogPilot" else "v4"
 
@@ -11,17 +18,9 @@ GITLAB_REPOSITORY_URL = "https://gitlab.com/FrogAi/FrogPilot-Resources/-/raw/"
 
 DEFAULT_MODEL = "north-dakota-v2"
 DEFAULT_MODEL_NAME = "North Dakota V2 (Default)"
-MODELS_PATH = "/data/models"
 
 NAVIGATION_MODELS = {"certified-herbalist", "duck-amigo", "los-angeles", "recertified-herbalist"}
 RADARLESS_MODELS = {"radical-turtle"}
-
-def is_url_pingable(url):
-  try:
-    response = requests.head(url, timeout=5)
-    return response.status_code == 200
-  except (requests.ConnectionError, requests.RequestException, requests.Timeout):
-    return False
 
 def get_repository_url():
   if is_url_pingable("https://github.com"):
@@ -96,6 +95,9 @@ def get_remote_file_size(url):
     return None
 
 def verify_download(file_path, model_url):
+  if not os.path.exists(file_path):
+    return False
+
   remote_file_size = get_remote_file_size(model_url)
 
   if remote_file_size is None:
@@ -136,11 +138,11 @@ def download_model(params_memory):
         print(f"Model {model} redownload verification failed. The file might be corrupted.")
 
   else:
-    error_message = "Failed: Github and Gitlab are offline..."
+    error_message = "Github and Gitlab are offline..."
     print(error_message)
     params_memory.put("ModelDownloadProgress", error_message)
 
-def populate_models(params):
+def update_models(params, boot_run=True):
   base_url = get_repository_url()
 
   if base_url is None:
@@ -152,18 +154,16 @@ def populate_models(params):
   try:
     with urllib.request.urlopen(url) as response:
       model_info = [line.decode('utf-8').strip().split(' - ') for line in response.readlines()]
-    update_params(model_info, params)
+      params.put("AvailableModels", ','.join(model[0] for model in model_info))
+      params.put("AvailableModelsNames", ','.join(model[1] for model in model_info))
+      print("Models list updated successfully.")
 
   except Exception as e:
     print(f"Failed to update models list. Error: {e}")
+    return
 
-def update_params(model_info, params):
-  params.put("AvailableModels", ','.join(model[0] for model in model_info))
-  params.put("AvailableModelsNames", ','.join(model[1] for model in model_info))
-  print("Models list updated successfully.")
-
-def update_models(params):
-  populate_models(params)
+  if not boot_run:
+    return
 
   model_name = params.get("ModelName", encoding='utf-8')
   if "(Default)" in model_name and model_name != DEFAULT_MODEL_NAME:
@@ -182,3 +182,13 @@ def update_models(params):
     else:
       params.put("Model", DEFAULT_MODEL)
       params.put("ModelName", DEFAULT_MODEL_NAME)
+
+  default_model_path = os.path.join(MODELS_PATH, f"{DEFAULT_MODEL}.thneed")
+  if not os.path.exists(default_model_path):
+    source_path = os.path.join(BASEDIR, "selfdrive/modeld/models/supercombo.thneed")
+    if os.path.exists(source_path):
+      shutil.copyfile(source_path, default_model_path)
+      print(f"Copied default model from {source_path} to {default_model_path}")
+    else:
+      print(f"Source default model not found at {source_path}. Exiting...")
+      return

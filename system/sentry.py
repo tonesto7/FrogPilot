@@ -1,13 +1,9 @@
 """Install exception handler for process crash."""
-import http.client
 import os
 import sentry_sdk
-import socket
 import subprocess
 import time
 import traceback
-import urllib.request
-import urllib.error
 
 from datetime import datetime
 from enum import Enum
@@ -19,6 +15,8 @@ from openpilot.system.hardware import HARDWARE, PC
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.version import get_build_metadata, get_version
 
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import is_url_pingable
+
 CRASHES_DIR = "/data/crashes/"
 
 class SentryProject(Enum):
@@ -28,21 +26,13 @@ class SentryProject(Enum):
   SELFDRIVE_NATIVE = "https://b42f6e8bea596ec3d7dc1d9a80280027@o4507524429185024.ingest.us.sentry.io/4507524452057088"
 
 
-def sentry_pinged(url="https://sentry.io", timeout=5):
-  try:
-    urllib.request.urlopen(url, timeout=timeout)
-    return True
-  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected):
-    return False
-
-
 def bind_user() -> None:
   sentry_sdk.set_user({"id": HARDWARE.get_serial()})
 
 
 def capture_tmux() -> None:
   try:
-    result = subprocess.run(['tmux', 'capture-pane', '-p', '-S', '-500'], stdout=subprocess.PIPE)
+    result = subprocess.run(['tmux', 'capture-pane', '-p', '-S', '-250'], stdout=subprocess.PIPE)
     lines = result.stdout.decode('utf-8').splitlines()
 
     if lines:
@@ -50,7 +40,7 @@ def capture_tmux() -> None:
         return
 
       while True:
-        if sentry_pinged():
+        if is_url_pingable("https://sentry.io"):
           with sentry_sdk.configure_scope() as scope:
             bind_user()
             scope.set_extra("tmux_log", "\n".join(lines))
@@ -70,7 +60,7 @@ def report_tombstone(fn: str, message: str, contents: str) -> None:
 
   no_internet = 0
   while True:
-    if sentry_pinged():
+    if is_url_pingable("https://sentry.io"):
       cloudlog.error({'tombstone': message})
 
       with sentry_sdk.configure_scope() as scope:
@@ -122,7 +112,7 @@ def capture_fingerprint(candidate, params, blocked=False):
 
   no_internet = 0
   while True:
-    if sentry_pinged():
+    if is_url_pingable("https://sentry.io"):
       with sentry_sdk.configure_scope() as scope:
         scope.fingerprint = [candidate, HARDWARE.get_serial()]
         for label, key_values in matched_params.items():
