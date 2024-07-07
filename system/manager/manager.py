@@ -108,6 +108,8 @@ def manager_init(frogpilot_functions) -> None:
     ("AMapKey1", ""),
     ("AMapKey2", ""),
     ("AutomaticUpdates", "1"),
+    ("AvailableModels", ""),
+    ("AvailableModelsNames", ""),
     ("BigMap", "0"),
     ("BlindSpotMetrics", "0"),
     ("BlindSpotPath", "1"),

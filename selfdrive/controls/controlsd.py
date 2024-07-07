@@ -947,6 +947,9 @@ class Controls:
       t.join()
 
   def update_frogpilot_events(self, CS):
+    if self.sm['frogpilotPlan'].forcingStop:
+      self.events.add(EventName.forcingStop)
+
     if self.frogpilot_toggles.green_light_alert and self.previously_enabled and CS.standstill:
       if self.sm['frogpilotPlan'].greenLight and not self.sm['longitudinalPlan'].hasLead:
         self.events.add(EventName.greenLight)

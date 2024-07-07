@@ -2,6 +2,8 @@ import numpy as np
 
 import cereal.messaging as messaging
 
+from cereal import car
+
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import interp
 from openpilot.common.params import Params
@@ -19,6 +21,8 @@ from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import Movin
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, CRUISING_SPEED, PROBABILITY, TRAJECTORY_SIZE
 from openpilot.selfdrive.frogpilot.controls.lib.map_turn_speed_controller import MapTurnSpeedController
 from openpilot.selfdrive.frogpilot.controls.lib.speed_limit_controller import SpeedLimitController
+
+ButtonType = car.CarState.ButtonEvent.Type
 
 A_CRUISE_MIN_ECO = A_CRUISE_MIN / 5
 A_CRUISE_MIN_SPORT = A_CRUISE_MIN / 2
@@ -110,6 +114,8 @@ class FrogPilotPlanner:
 
     self.model_length = modelData.position.x[TRAJECTORY_SIZE - 1]
     self.override_force_stop |= frogpilot_toggles.force_stops and carState.standstill and self.tracking_lead
+    self.override_force_stop |= any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for be in carState.buttonEvents)
+    self.override_force_stop &= self.cem.stop_light_detected
     self.road_curvature = calculate_road_curvature(modelData, v_ego)
 
     if frogpilot_toggles.random_events:
@@ -286,6 +292,7 @@ class FrogPilotPlanner:
       if carState.gasPressed:
         self.override_force_stop = True
       else:
+        self.forcing_stop = True
         self.v_cruise = -1
 
     elif frogpilot_toggles.force_stops and self.cem.stop_light_detected and not self.override_force_stop:
@@ -301,7 +308,6 @@ class FrogPilotPlanner:
 
     else:
       self.forcing_stop = False
-      self.override_force_stop = False
       self.tracked_model_length = 0
 
       targets = [self.mtsc_target, max(self.overridden_speed, self.slc_target) - v_ego_diff, self.vtsc_target]
@@ -319,8 +325,8 @@ class FrogPilotPlanner:
     frogpilotPlan.speedJerkStock = float(J_EGO_COST * self.base_speed_jerk)
     frogpilotPlan.tFollow = float(self.t_follow)
 
-    frogpilotPlan.adjustedCruise = min(self.mtsc_target, self.vtsc_target) * (CV.MS_TO_KPH if frogpilot_toggles.is_metric else CV.MS_TO_MPH)
-    frogpilotPlan.vtscControllingCurve = self.mtsc_target > self.vtsc_target
+    frogpilotPlan.adjustedCruise = float(min(self.mtsc_target, self.vtsc_target) * (CV.MS_TO_KPH if frogpilot_toggles.is_metric else CV.MS_TO_MPH))
+    frogpilotPlan.vtscControllingCurve = bool(self.mtsc_target > self.vtsc_target)
 
     frogpilotPlan.conditionalExperimentalActive = self.cem.experimental_mode
 
@@ -328,6 +334,8 @@ class FrogPilotPlanner:
     frogpilotPlan.safeObstacleDistance = self.safe_obstacle_distance
     frogpilotPlan.safeObstacleDistanceStock = self.safe_obstacle_distance_stock
     frogpilotPlan.stoppedEquivalenceFactor = self.stopped_equivalence_factor
+
+    frogpilotPlan.forcingStop = self.forcing_stop
 
     frogpilotPlan.greenLight = self.model_length > TRAJECTORY_SIZE
 
