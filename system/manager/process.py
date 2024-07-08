@@ -108,6 +108,7 @@ class ManagerProcess(ABC):
     if dt > self.watchdog_max_dt:
       if self.watchdog_seen and ENABLE_WATCHDOG:
         if self.started_time > 1000:
+          print("UI crashed. Sending log to Sentry")
           sentry.capture_tmux()
         cloudlog.error(f"Watchdog timeout for {self.name} (exitcode {self.proc.exitcode}) restarting ({started=})")
         self.restart()

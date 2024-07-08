@@ -412,7 +412,7 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s, c
 
   if (scene.show_stopping_point) {
     bool curve_detected = sqrt(1.0 / scene.road_curvature) < v_ego;
-    bool following_lead = scene.has_lead && (scene.lead_distance < fmax(scene.model_length, 25));
+    bool following_lead = scene.has_lead && scene.lead_distance < scene.model_length + 33;
     bool model_stopping = scene.model_length < v_ego * (10 - 3);
 
     if (model_stopping && !curve_detected && !following_lead) {
@@ -624,11 +624,13 @@ void AnnotatedCameraWidget::drawLead(QPainter &painter, const cereal::ModelDataV
     painter.setPen(Qt::white);
     painter.setFont(InterFont(35, QFont::Bold));
 
-    QString text = QString("%1 %2 | %3 %4")
+    QString text = QString("%1 %2 | %3 %4 | %5 %6")
                     .arg(qRound(d_rel * distanceConversion))
                     .arg(leadDistanceUnit)
                     .arg(qRound(lead_speed * speedConversion))
-                    .arg(leadSpeedUnit);
+                    .arg(leadSpeedUnit)
+                    .arg(qRound(d_rel / v_ego))
+                    .arg("s");
 
     QFontMetrics metrics(painter.font());
     int middle_x = (chevron[2].x() + chevron[0].x()) / 2;
@@ -833,7 +835,7 @@ void AnnotatedCameraWidget::initializeFrogPilotWidgets() {
   QObject::connect(recordTimer, &QTimer::timeout, this, [this] {
     recorder->updateScreen();
   });
-  recordTimer->start(2000 / UI_FREQ);
+  recordTimer->start(75);
 }
 
 void AnnotatedCameraWidget::paintFrogPilotWidgets(QPainter &painter, const UIScene &scene) {
