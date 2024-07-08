@@ -92,13 +92,19 @@ def capture_fingerprint(candidate, params, blocked=False):
     for label, key_type in param_types.items():
       if params.get_key_type(key) & key_type:
         if key_type == ParamKeyType.FROGPILOT_TRACKING:
-          value = params_tracking.get_int(key)
+          try:
+            value = params_tracking.get_int(key)
+          except Exception:
+            value = "0"
         else:
-          value = params.get(key)
-          if isinstance(value, bytes):
-            value = value.decode('utf-8')
-          if isinstance(value, str) and value.replace('.', '', 1).isdigit():
-            value = float(value) if '.' in value else int(value)
+          try:
+            value = params.get(key)
+            if isinstance(value, bytes):
+              value = value.decode('utf-8')
+            if isinstance(value, str) and value.replace('.', '', 1).isdigit():
+              value = float(value) if '.' in value else int(value)
+          except Exception:
+            value = "0"
         matched_params[label][key.decode('utf-8')] = value
 
   for label, key_values in matched_params.items():

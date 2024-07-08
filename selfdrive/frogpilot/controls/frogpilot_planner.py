@@ -113,9 +113,9 @@ class FrogPilotPlanner:
       self.tracking_lead_distance = 0
 
     self.model_length = modelData.position.x[TRAJECTORY_SIZE - 1]
+    self.override_force_stop |= carState.gasPressed
     self.override_force_stop |= frogpilot_toggles.force_stops and carState.standstill and self.tracking_lead
-    self.override_force_stop |= any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for be in carState.buttonEvents)
-    self.override_force_stop &= self.cem.stop_light_detected
+    self.override_force_stop |= any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise, ButtonType.setCruise) for be in carState.buttonEvents)
     self.road_curvature = calculate_road_curvature(modelData, v_ego)
 
     if frogpilot_toggles.random_events:
@@ -288,25 +288,22 @@ class FrogPilotPlanner:
     else:
       self.vtsc_target = v_cruise if v_cruise != V_CRUISE_UNSET else 0
 
-    if frogpilot_toggles.force_standstill and carState.standstill and not self.override_force_stop:
-      if carState.gasPressed:
-        self.override_force_stop = True
-      else:
-        self.forcing_stop = True
-        self.v_cruise = -1
+    if frogpilot_toggles.force_standstill and carState.standstill and not self.override_force_stop and controlsState.enabled:
+      self.forcing_stop = True
+      self.v_cruise = -1
 
-    elif frogpilot_toggles.force_stops and self.cem.stop_light_detected and not self.override_force_stop:
-      if carState.gasPressed:
-        self.override_force_stop = True
-      else:
-        if self.tracked_model_length == 0:
-          self.tracked_model_length = self.model_length
+    elif frogpilot_toggles.force_stops and self.cem.stop_light_detected and not self.override_force_stop and controlsState.enabled:
+      if self.tracked_model_length == 0:
+        self.tracked_model_length = self.model_length
 
-        self.forcing_stop = True
-        self.tracked_model_length -= v_ego * DT_MDL
-        self.v_cruise = min(self.tracked_model_length / ModelConstants.T_IDXS[TRAJECTORY_SIZE - 1], v_cruise)
+      self.forcing_stop = True
+      self.tracked_model_length -= v_ego * DT_MDL
+      self.v_cruise = min(self.tracked_model_length / ModelConstants.T_IDXS[TRAJECTORY_SIZE - 1], v_cruise)
 
     else:
+      if not self.cem.stop_light_detected:
+        self.override_force_stop = False
+
       self.forcing_stop = False
       self.tracked_model_length = 0
 

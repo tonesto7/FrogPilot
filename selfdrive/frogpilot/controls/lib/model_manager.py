@@ -142,7 +142,7 @@ def download_model(params_memory):
     print(error_message)
     params_memory.put("ModelDownloadProgress", error_message)
 
-def update_models(params, boot_run=True):
+def update_models(params, params_memory, boot_run=True):
   base_url = get_repository_url()
 
   if base_url is None:

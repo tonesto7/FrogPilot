@@ -44,7 +44,7 @@ def frogpilot_boot_functions(frogpilot_functions):
     return
 
   try:
-    update_models(Params())
+    update_models(Params(), Params("/dev/shm/params"))
   except subprocess.CalledProcessError as e:
     print(f"Failed to delete deprecated models. Error: {e}")
     return
