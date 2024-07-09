@@ -62,17 +62,6 @@ class FrogPilotVariables:
     distance_conversion = 1. if toggle.is_metric else CV.FOOT_TO_METER
     speed_conversion = CV.KPH_TO_MS if toggle.is_metric else CV.MPH_TO_MS
 
-    if not started:
-      toggle.model_selector = self.params.get_bool("ModelSelector")
-      toggle.model = self.params.get("Model", block=openpilot_installed, encoding='utf-8') if toggle.model_selector else DEFAULT_MODEL
-      if not os.path.exists(os.path.join(MODELS_PATH, f"{toggle.model}.thneed")):
-        toggle.model = DEFAULT_MODEL
-      toggle.navigationless_model = toggle.model not in NAVIGATION_MODELS
-      toggle.radarless_model = not self.release and toggle.model in RADARLESS_MODELS
-      toggle.secretgoodopenpilot_model = not self.release and toggle.model == "secret-good-openpilot"
-      if self.release and toggle.model in {RADARLESS_MODELS, "secret_good_openpilot"}:
-        toggle.model = DEFAULT_MODEL
-
     toggle.alert_volume_control = self.params.get_bool("AlertVolumeControl")
     toggle.disengage_volume = self.params.get_int("DisengageVolume") if toggle.alert_volume_control else 100
     toggle.engage_volume = self.params.get_int("EngageVolume") if toggle.alert_volume_control else 100
@@ -190,6 +179,17 @@ class FrogPilotVariables:
     toggle.map_turn_speed_controller = openpilot_longitudinal and self.params.get_bool("MTSCEnabled")
     toggle.mtsc_curvature_check = toggle.map_turn_speed_controller and self.params.get_bool("MTSCCurvatureCheck")
     self.params_memory.put_float("MapTargetLatA", 2 * (self.params.get_int("MTSCAggressiveness") / 100.))
+
+    toggle.model_selector = self.params.get_bool("ModelSelector", block=openpilot_installed)
+    toggle.model = self.params.get("Model", block=True, encoding='utf-8') if toggle.model_selector else DEFAULT_MODEL
+    if toggle.model_selector and not started:
+      if not os.path.exists(os.path.join(MODELS_PATH, f"{toggle.model}.thneed")):
+        toggle.model = DEFAULT_MODEL
+    toggle.navigationless_model = toggle.model not in NAVIGATION_MODELS
+    toggle.radarless_model = not self.release and toggle.model in RADARLESS_MODELS
+    toggle.secretgoodopenpilot_model = not self.release and toggle.model == "secret-good-openpilot"
+    if self.release and toggle.model in RADARLESS_MODELS | {"secret_good_openpilot"}:
+      toggle.model = DEFAULT_MODEL
 
     quality_of_life_controls = self.params.get_bool("QOLControls")
     toggle.custom_cruise_increase = self.params.get_int("CustomCruise") if quality_of_life_controls and not pcm_cruise else 1
