@@ -62,6 +62,13 @@ def calculate_lane_width(lane, current_lane, road_edge):
 
   return float(min(distance_to_lane, distance_to_road_edge))
 
+# Credit goes to Pfeiferj!
+def calculate_road_curvature(modelData, v_ego):
+  orientation_rate = np.abs(modelData.orientationRate.z)
+  velocity = modelData.velocity.x
+  max_pred_lat_acc = np.amax(orientation_rate * velocity)
+  return abs(float(max_pred_lat_acc / v_ego**2))
+
 def backup_directory(src, dest, msg_success, msg_fail):
   os.makedirs(dest, exist_ok=True)
   run_cmd(['sudo', 'cp', '-a', os.path.join(src, '.'), dest], msg_success, msg_fail)
