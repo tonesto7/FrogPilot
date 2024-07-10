@@ -11,7 +11,7 @@ from openpilot.system.version import get_build_metadata
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH, is_url_pingable
 
-VERSION = "v3" if get_build_metadata().channel == "FrogPilot" else "v4"
+VERSION = "v3" if get_build_metadata().release_channel else "v4"
 
 GITHUB_REPOSITORY_URL = "https://raw.githubusercontent.com/FrogAi/FrogPilot-Resources/"
 GITLAB_REPOSITORY_URL = "https://gitlab.com/FrogAi/FrogPilot-Resources/-/raw/"

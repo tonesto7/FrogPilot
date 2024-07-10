@@ -62,7 +62,7 @@ QStringList getCarNames(const QString &carMake, QMap<QString, QString> &carModel
       QRegularExpressionMatch match = carDocsIt.next();
       QString carName = match.captured(1);
 
-      if (carName.contains(QRegularExpression("^[A-Za-z0-9 .()-]+$")) && carName.count(" ") >= 1) {
+      if (carName.contains(QRegularExpression("^[A-Za-z0-9 Š.()-]+$")) && carName.count(" ") >= 1) {
         QStringList nameParts = carName.split(" ");
         if (nameParts.contains(carMake, Qt::CaseInsensitive)) {
           if (!uniqueNames.contains(carName)) {

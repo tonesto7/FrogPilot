@@ -10,7 +10,8 @@ $Cxx.namespace("cereal");
 # you can rename the struct, but don't change the identifier
 struct FrogPilotCarControl @0x81c2f05a394cf4af {
   alwaysOnLateral @0 :Bool;
-  speedLimitChanged @1 :Bool;
+  resumePressed @1 :Bool;
+  speedLimitChanged @2 :Bool;
 }
 
 struct FrogPilotCarState @0xaedffd8f31e7b55d {
@@ -47,7 +48,7 @@ struct FrogPilotPlan @0x80ae746ee2596b11 {
   adjustedCruise @2 :Float32;
   conditionalExperimentalActive @3 :Bool;
   dangerJerk @4 :Float32;
-  desiredFollowDistance @5 :Int16;
+  desiredFollowDistance @5 :Float32;
   forcingStop @6 :Bool;
   greenLight @7 :Bool;
   laneWidthLeft @8 :Float32;

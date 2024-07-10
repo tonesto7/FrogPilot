@@ -40,10 +40,12 @@ class SpeedLimitController:
       self.params.put_float_nonblocking("PreviousSpeedLimit", speed_limit)
       self.prv_speed_limit = speed_limit
 
-  def update(self, dashboardSpeedLimit, navigationSpeedLimit, v_ego, frogpilot_toggles):
+  def update(self, dashboardSpeedLimit, navigationSpeedLimit, v_cruise, v_ego, frogpilot_toggles):
     self.car_speed_limit = dashboardSpeedLimit
     self.write_map_state(v_ego)
     self.nav_speed_limit = navigationSpeedLimit
+
+    self.v_cruise = v_cruise
 
     self.frogpilot_toggles = frogpilot_toggles
 
@@ -117,6 +119,9 @@ class SpeedLimitController:
 
     if self.frogpilot_toggles.use_previous_limit:
       return self.prv_speed_limit
+
+    if self.frogpilot_toggles.use_set_speed:
+      return self.v_cruise
 
     return 0
 

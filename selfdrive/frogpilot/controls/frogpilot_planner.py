@@ -115,7 +115,7 @@ class FrogPilotPlanner:
     self.model_length = modelData.position.x[TRAJECTORY_SIZE - 1]
     self.override_force_stop |= carState.gasPressed
     self.override_force_stop |= frogpilot_toggles.force_stops and carState.standstill and self.tracking_lead
-    self.override_force_stop |= any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise, ButtonType.setCruise) for be in carState.buttonEvents)
+    self.override_force_stop |= frogpilotCarControl.resumePressed
     self.road_curvature = calculate_road_curvature(modelData, v_ego)
 
     if frogpilot_toggles.random_events:
@@ -123,7 +123,7 @@ class FrogPilotPlanner:
 
     self.set_acceleration(controlsState, frogpilotCarState, v_cruise, v_ego, frogpilot_toggles)
     self.set_follow_values(controlsState, frogpilotCarState, lead_distance, stopping_distance, v_ego, v_lead, frogpilot_toggles)
-    self.set_lead_status(carState, lead_distance)
+    self.set_lead_status(carState, lead_distance, stopping_distance)
     self.update_v_cruise(carState, controlsState, frogpilotCarState, frogpilotNavigation, modelData, v_cruise, v_ego, frogpilot_toggles)
 
   def set_acceleration(self, controlsState, frogpilotCarState, v_cruise, v_ego, frogpilot_toggles):
@@ -201,8 +201,8 @@ class FrogPilotPlanner:
       self.danger_jerk = self.base_danger_jerk
       self.speed_jerk = self.base_speed_jerk
 
-  def set_lead_status(self, carState, lead_distance):
-    following_lead = self.lead_one.status and lead_distance < self.model_length + TRAJECTORY_SIZE
+  def set_lead_status(self, carState, lead_distance, stopping_distance):
+    following_lead = self.lead_one.status and lead_distance < max(self.model_length, stopping_distance) + TRAJECTORY_SIZE
     following_lead &= not carState.standstill or self.tracking_lead
 
     self.tracking_lead_mac.add_data(following_lead)
@@ -252,7 +252,7 @@ class FrogPilotPlanner:
 
     # Pfeiferj's Speed Limit Controller
     if frogpilot_toggles.speed_limit_controller:
-      SpeedLimitController.update(frogpilotCarState.dashboardSpeedLimit, frogpilotNavigation.navigationSpeedLimit, v_ego, frogpilot_toggles)
+      SpeedLimitController.update(frogpilotCarState.dashboardSpeedLimit, frogpilotNavigation.navigationSpeedLimit, v_cruise, v_ego, frogpilot_toggles)
       unconfirmed_slc_target = SpeedLimitController.desired_speed_limit
 
       if frogpilot_toggles.speed_limit_confirmation and self.slc_target != 0:

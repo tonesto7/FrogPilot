@@ -248,10 +248,6 @@ def get_SearchInput():
   SearchInput = params.get_int("SearchInput")
   return SearchInput
 
-def get_PrimeType():
-  PrimeType = params.get_int("PrimeType")
-  return PrimeType
-
 def get_last_lon_lat():
   last_pos = params.get("LastGPSPosition")
   if last_pos:

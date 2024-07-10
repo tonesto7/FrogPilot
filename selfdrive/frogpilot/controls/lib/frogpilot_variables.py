@@ -1,4 +1,5 @@
 import os
+import random
 
 from types import SimpleNamespace
 
@@ -24,7 +25,8 @@ class FrogPilotVariables:
     self.params = Params()
     self.params_memory = Params("/dev/shm/params")
 
-    self.release = get_build_metadata().channel == "FrogPilot"
+    self.has_prime = self.params.get_int("PrimeType") > 0
+    self.release = get_build_metadata().release_channel
 
     self.update_frogpilot_params(False)
 
@@ -222,6 +224,7 @@ class FrogPilotVariables:
     speed_limit_controller_override = self.params.get_int("SLCOverride") if toggle.speed_limit_controller else 0
     toggle.speed_limit_controller_override_manual = speed_limit_controller_override == 1
     toggle.speed_limit_controller_override_set_speed = speed_limit_controller_override == 2
+    toggle.use_set_speed = toggle.speed_limit_controller and self.params.get_int("SLCFallback") == 0
     toggle.use_experimental_mode = toggle.speed_limit_controller and self.params.get_int("SLCFallback") == 1
     toggle.use_previous_limit = toggle.speed_limit_controller and self.params.get_int("SLCFallback") == 2
     toggle.speed_limit_priority1 = self.params.get("SLCPriority1", encoding='utf-8') if toggle.speed_limit_controller else None

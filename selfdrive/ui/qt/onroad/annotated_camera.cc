@@ -715,7 +715,7 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
         const auto &lead = model.getLeadsV3()[i];
         auto lead_drel = lead.getX()[0];
         if (s->scene.has_lead && (prev_drel < 0 || std::abs(lead_drel - prev_drel) > 3.0)) {
-          drawLead(painter, lead, s->scene.lead_vertices[i], v_ego);
+          drawLead(painter, lead, s->scene.lead_vertices[i], (speed / (is_metric ? MS_TO_KPH : MS_TO_MPH)));
         }
         prev_drel = lead_drel;
       }

@@ -1131,6 +1131,7 @@ class Controls:
 
     FPCC = custom.FrogPilotCarControl.new_message()
     FPCC.alwaysOnLateral = self.always_on_lateral_active
+    FPCC.resumePressed = any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise, ButtonType.setCruise) for be in CS.buttonEvents)
     FPCC.speedLimitChanged = self.speed_limit_changed
 
     return FPCC

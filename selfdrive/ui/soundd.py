@@ -95,7 +95,7 @@ class Soundd:
       AudibleAlert.uwu: MAX_VOLUME,
     }
 
-    self.update_toggles = False
+    self.update_toggles = True
 
     self.update_frogpilot_sounds()
 

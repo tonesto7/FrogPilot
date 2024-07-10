@@ -7,6 +7,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -37,7 +38,7 @@ def calculate_road_curvature(modelData, v_ego):
   orientation_rate = np.array(np.abs(modelData.orientationRate.z))
   velocity = np.array(modelData.velocity.x)
   max_pred_lat_acc = np.amax(orientation_rate * velocity)
-  return abs(float(max_pred_lat_acc / (v_ego**2)))
+  return float(max_pred_lat_acc / max(v_ego**2, sys.float_info.min))
 
 def is_url_pingable(url, timeout=5):
   try:
