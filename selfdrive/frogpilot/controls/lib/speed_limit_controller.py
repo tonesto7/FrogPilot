@@ -4,6 +4,7 @@ import math
 
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.params import Params
+from openpilot.selfdrive.controls.lib.drive_helpers import V_CRUISE_UNSET
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
 
@@ -120,7 +121,7 @@ class SpeedLimitController:
     if self.frogpilot_toggles.use_previous_limit:
       return self.prv_speed_limit
 
-    if self.frogpilot_toggles.use_set_speed:
+    if self.frogpilot_toggles.use_set_speed and self.v_cruise != V_CRUISE_UNSET:
       return self.v_cruise
 
     return 0

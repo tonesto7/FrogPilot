@@ -951,14 +951,14 @@ class Controls:
       self.events.add(EventName.forcingStop)
 
     if self.frogpilot_toggles.green_light_alert and self.previously_enabled and CS.standstill:
-      if self.sm['frogpilotPlan'].greenLight and not self.sm['longitudinalPlan'].hasLead:
+      if not self.sm['frogpilotPlan'].redLight and not self.sm['longitudinalPlan'].hasLead:
         self.events.add(EventName.greenLight)
 
     if not self.holiday_theme_alerted and self.frogpilot_toggles.current_holiday_theme != 0 and self.sm.frame * DT_CTRL >= 10:
       self.events.add(EventName.holidayActive)
       self.holiday_theme_alerted = True
 
-    if self.sm['frogpilotPlan'].leadDeparting:
+    if self.sm['frogpilotPlan'].leadDeparting and self.previously_enabled and CS.standstill:
       self.events.add(EventName.leadDeparting)
 
     if not self.openpilot_crashed_triggered and os.path.isfile(os.path.join(sentry.CRASHES_DIR, 'error.txt')):
@@ -1131,7 +1131,7 @@ class Controls:
 
     FPCC = custom.FrogPilotCarControl.new_message()
     FPCC.alwaysOnLateral = self.always_on_lateral_active
-    FPCC.resumePressed = any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise, ButtonType.setCruise) for be in CS.buttonEvents)
+    FPCC.resumePressed = any(be.type == ButtonType.accelCruise for be in CS.buttonEvents)
     FPCC.speedLimitChanged = self.speed_limit_changed
 
     return FPCC

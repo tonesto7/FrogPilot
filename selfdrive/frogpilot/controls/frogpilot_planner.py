@@ -85,7 +85,7 @@ class FrogPilotPlanner:
 
     v_cruise = min(controlsState.vCruise, V_CRUISE_UNSET) * CV.KPH_TO_MS
     v_ego = max(carState.vEgo, 0)
-    v_lead = self.lead_one.vLead
+    v_lead = max(self.lead_one.vLead, modelData.leadsV3[0].v[0])
 
     distance_offset = max(frogpilot_toggles.increased_stopping_distance + min(CITY_SPEED_LIMIT - v_ego, 0), 0) if not frogpilotCarState.trafficModeActive else 0
     lead_distance = self.lead_one.dRel - distance_offset
@@ -298,7 +298,7 @@ class FrogPilotPlanner:
 
       self.forcing_stop = True
       self.tracked_model_length -= v_ego * DT_MDL
-      self.v_cruise = min(self.tracked_model_length / ModelConstants.T_IDXS[TRAJECTORY_SIZE - 1], v_cruise)
+      self.v_cruise = min(self.tracked_model_length / ModelConstants.T_IDXS[TRAJECTORY_SIZE - 1] - 1, v_cruise)
 
     else:
       if not self.cem.stop_light_detected:
@@ -334,8 +334,6 @@ class FrogPilotPlanner:
 
     frogpilotPlan.forcingStop = self.forcing_stop
 
-    frogpilotPlan.greenLight = self.model_length > TRAJECTORY_SIZE
-
     frogpilotPlan.laneWidthLeft = self.lane_width_left
     frogpilotPlan.laneWidthRight = self.lane_width_right
 
@@ -343,6 +341,8 @@ class FrogPilotPlanner:
 
     frogpilotPlan.maxAcceleration = float(self.max_accel)
     frogpilotPlan.minAcceleration = float(self.min_accel)
+
+    frogpilotPlan.redLight = self.cem.stop_light_detected
 
     frogpilotPlan.roadCurvature = self.road_curvature
 

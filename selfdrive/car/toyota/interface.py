@@ -137,6 +137,7 @@ class CarInterface(CarInterfaceBase):
 
     tune = ret.longitudinalTuning
     if params.get_bool("CydiaTune"):
+      ret.stopAccel = -2.5             # on stock Toyota this is -2.5
       ret.stoppingDecelRate = 0.3      # reach stopping target smoothly
       if candidate in TSS2_CAR:
         tune.kpV = [0.0]
