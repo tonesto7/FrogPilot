@@ -44,7 +44,7 @@ private:
   std::set<QString> laneChangeKeys = {"LaneChangeTime", "LaneDetectionWidth", "MinimumLaneChangeSpeed", "NudgelessLaneChange", "OneLaneChange"};
   std::set<QString> lateralTuneKeys = {"ForceAutoTune", "NNFF", "NNFFLite", "SteerRatio", "TacoTune", "TurnDesires"};
   std::set<QString> longitudinalTuneKeys = {"AccelerationProfile", "AggressiveAcceleration", "DecelerationProfile", "LeadDetectionThreshold", "SmoothBraking", "StoppingDistance", "TrafficMode"};
-  std::set<QString> modelManagementKeys = {"ModelRandomizer", "DeleteModel", "DownloadModel", "SelectModel"};
+  std::set<QString> modelManagementKeys = {"AutomaticallyUpdateModels", "ModelRandomizer", "DeleteModel", "DownloadModel", "SelectModel"};
   std::set<QString> modelRandomizerKeys = {"ManageBlacklistedModels", "ResetScores", "ReviewScores"};
   std::set<QString> mtscKeys = {"DisableMTSCSmoothing", "MTSCAggressiveness", "MTSCCurvatureCheck"};
   std::set<QString> qolKeys = {"CustomCruise", "CustomCruiseLong", "ForceStandstill", "MapGears", "PauseLateralSpeed", "ReverseCruise", "SetSpeedOffset"};

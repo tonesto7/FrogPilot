@@ -131,6 +131,7 @@ def download_model(params_memory):
       success_message = f"Model {model} downloaded and verified successfully!"
       print(success_message)
       params_memory.put("ModelDownloadProgress", "Downloaded!")
+      params_memory.remove("ModelToDownload")
     else:
       handle_verification_failure(params_memory, model, model_path, model_url)
   else:
@@ -199,15 +200,27 @@ def copy_default_model():
       return False
   return True
 
-def are_all_models_downloaded(params):
+def are_all_models_downloaded(params, params_memory):
   available_models = params.get("AvailableModels", encoding='utf-8').split(',')
+  all_models_downloaded = True
+
   for model in available_models:
     model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
-    if not os.path.exists(model_path):
-      return False
-  return True
+    model_url = f"{get_repository_url()}Models/{model}.thneed"
 
-def update_models(params, params_memory, boot_run=True):
+    if not os.path.exists(model_path) or not verify_download(model_path, model_url):
+      if params.get_bool("AutomaticallyUpdateModels"):
+        if os.path.exists(model_path):
+          delete_file(model_path)
+        while params_memory.get("ModelToDownload") is not None:
+          time.sleep(1)
+        params_memory.put("ModelToDownload", model)
+        download_model(params_memory)
+      all_models_downloaded = False
+
+  return all_models_downloaded
+
+def update_models(params, params_memory, boot_run=True, started=False):
   base_url = get_base_url()
   if base_url is None:
     return
@@ -218,6 +231,8 @@ def update_models(params, params_memory, boot_run=True):
     return
 
   update_model_lists(model_info, params)
+  if not started and not boot_run:
+    params.put_bool("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
   if not boot_run:
     return
 
@@ -225,5 +240,3 @@ def update_models(params, params_memory, boot_run=True):
   validate_current_model(params, params_memory)
   if not copy_default_model():
     return
-
-  params.put_bool("ModelsDownloaded", are_all_models_downloaded(params))

@@ -227,6 +227,7 @@ std::unordered_map<std::string, uint32_t> keys = {
     {"AMapKey1", PERSISTENT},
     {"AMapKey2", PERSISTENT},
     {"ApiCache_DriveStats", PERSISTENT},
+    {"AutomaticallyUpdateModels", PERSISTENT | FROGPILOT_STORAGE | FROGPILOT_CONTROLS},
     {"AutomaticUpdates", PERSISTENT | FROGPILOT_STORAGE | FROGPILOT_OTHER},
     {"AvailableModels", PERSISTENT},
     {"AvailableModelsNames", PERSISTENT},

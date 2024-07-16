@@ -160,7 +160,7 @@ class FrogPilotFunctions:
     if install_date and install_date.decode('utf-8').startswith("November 21, 2023"):
       params.remove("InstallDate")
 
-    version = 7
+    version = 8
 
     try:
       if params_storage.check_key("ParamConversionVersion"):
@@ -176,6 +176,12 @@ class FrogPilotFunctions:
 
     # "ModelSelector" param still exists, remove it when this gets cleaned up
     convert_param("ModelSelector", model_selector)
+
+    def toyota_tune():
+      params.put("FrogsGoMooTune", "True")
+
+    # "DragonPilotTune" param still exists, remove it when this gets cleaned up
+    convert_param("DragonPilotTune", toyota_tune)
 
     print("Params successfully converted!")
     params_storage.put_int("ParamConversionVersion", version)

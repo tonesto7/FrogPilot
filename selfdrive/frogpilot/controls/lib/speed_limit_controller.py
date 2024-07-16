@@ -27,7 +27,7 @@ class SpeedLimitController:
 
     self.car_speed_limit = 0  # m/s
     self.map_speed_limit = 0  # m/s
-    self.max_speed_limit = 0
+    self.max_speed_limit = 0  # m/s
     self.nav_speed_limit = 0  # m/s
     self.prv_speed_limit = self.params.get_float("PreviousSpeedLimit")
 

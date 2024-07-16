@@ -118,6 +118,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"MTSCAggressiveness", tr("Turn Speed Aggressiveness"), tr("Set turn speed aggressiveness. Higher values result in faster turns, lower values yield gentler turns. \n\nA change of +- 1% results in the speed being raised or lowered by about 1 mph."), ""},
 
     {"ModelManagement", tr("Model Management"), tr("Manage openpilot's driving models."), "../assets/offroad/icon_calibration.png"},
+    {"AutomaticallyUpdateModels", tr("Automatically Update Models"), tr("Automatically download models as they're updated or added to the model list."), ""},
     {"ModelRandomizer", tr("Model Randomizer"), tr("Have a random model be selected each drive that can be reviewed at the end of each drive to find your preferred model."), ""},
     {"ManageBlacklistedModels", tr("Manage Model Blacklist"), "Manage the models on your blacklist.", ""},
     {"ResetScores", tr("Reset Model Scores"), tr("Reset the scores FrogPilot and yourself have rated the openpilot models."), ""},
@@ -608,7 +609,6 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
               downloadModelBtn->setValue(progress);
 
               paramsMemory.remove("ModelDownloadProgress");
-              paramsMemory.remove("ModelToDownload");
 
               progressTimer->stop();
               progressTimer->deleteLater();
@@ -1247,6 +1247,10 @@ void FrogPilotControlsPanel::updateModelLabels() {
     LabelControl *labelControl = new LabelControl(pair.first, scoreDisplay, "", this);
     addItem(labelControl);
     labelControls.append(labelControl);
+  }
+
+  for (LabelControl *label : labelControls) {
+    label->setVisible(false);
   }
 }
 

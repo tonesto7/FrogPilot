@@ -40,7 +40,7 @@ def time_checks(automatic_updates, deviceState, now, started, params, params_mem
       automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
-  update_models(params, params_memory, False)
+  update_models(params, params_memory, False, started)
 
 def update_maps(now, params, params_memory):
   maps_selected = params.get("MapsSelected")
