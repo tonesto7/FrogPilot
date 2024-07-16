@@ -7,8 +7,10 @@
 
 #include "selfdrive/ui/qt/offroad/experimental_mode.h"
 #include "selfdrive/ui/qt/util.h"
-#include "selfdrive/ui/qt/widgets/drive_stats.h"
 #include "selfdrive/ui/qt/widgets/prime.h"
+
+#include "selfdrive/frogpilot/ui/qt/widgets/drive_stats.h"
+#include "selfdrive/frogpilot/ui/qt/widgets/model_reviewer.h"
 
 #ifdef ENABLE_MAPS
 #include "selfdrive/ui/qt/maps/map_settings.h"
@@ -170,12 +172,15 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
 #else
     left_widget->addWidget(new QWidget);
 #endif
-    left_widget->addWidget(new PrimeAdWidget);
     left_widget->addWidget(new DriveStats);
+    left_widget->addWidget(new ModelReview);
     left_widget->setStyleSheet("border-radius: 10px;");
 
-    left_widget->setCurrentIndex(2);
-    connect(uiState(), &UIState::primeChanged, [=](bool prime) {
+    left_widget->setCurrentIndex(1);
+    connect(uiState(), &UIState::driveRated, [=]() {
+      left_widget->setCurrentIndex(1);
+    });
+    connect(uiState(), &UIState::reviewModel, [=]() {
       left_widget->setCurrentIndex(2);
     });
 

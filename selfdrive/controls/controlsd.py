@@ -204,6 +204,8 @@ class Controls:
     self.previous_traffic_mode = False
     self.previously_enabled = False
     self.random_event_triggered = False
+    self.resume_pressed = False
+    self.resume_previously_pressed = False
     self.speed_check = False
     self.speed_limit_changed = False
     self.update_toggles = False
@@ -253,8 +255,8 @@ class Controls:
       return
 
     # Block resume if cruise never previously enabled
-    resume_pressed = any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for be in CS.buttonEvents)
-    if not self.CP.pcmCruise and not self.v_cruise_helper.v_cruise_initialized and resume_pressed:
+    self.resume_pressed = any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for be in CS.buttonEvents)
+    if not self.CP.pcmCruise and not self.v_cruise_helper.v_cruise_initialized and self.resume_pressed:
       self.events.add(EventName.resumeBlocked)
 
     if not self.CP.notCar:
@@ -951,7 +953,7 @@ class Controls:
       self.events.add(EventName.forcingStop)
 
     if self.frogpilot_toggles.green_light_alert and self.previously_enabled and CS.standstill:
-      if not self.sm['frogpilotPlan'].redLight and not self.sm['longitudinalPlan'].hasLead:
+      if self.sm['frogpilotPlan'].greenLight and not self.sm['longitudinalPlan'].hasLead:
         self.events.add(EventName.greenLight)
 
     if not self.holiday_theme_alerted and self.frogpilot_toggles.current_holiday_theme != 0 and self.sm.frame * DT_CTRL >= 10:
@@ -1053,7 +1055,7 @@ class Controls:
       self.params_tracking.put_float_nonblocking("FrogPilotMinutes", self.total_time)
       self.drive_time = 0
 
-      if not self.drive_added and self.sm.frame * DT_CTRL > 60 * 5:
+      if not self.drive_added and self.sm.frame * DT_CTRL > 60 * 15:
         self.total_drives += 1
         self.params_tracking.put_int_nonblocking("FrogPilotDrives", self.total_drives)
         self.drive_added = True
@@ -1081,6 +1083,9 @@ class Controls:
         self.random_event_timer = 0
         self.params_memory.remove("CurrentRandomEvent")
 
+    if self.sm.frame % 25 == 0 or self.resume_pressed:
+      self.resume_previously_pressed = self.resume_pressed
+
     self.speed_check = CS.vEgo >= self.frogpilot_toggles.pause_lateral_below_speed
     self.speed_check |= self.frogpilot_toggles.pause_lateral_below_signal and not (CS.leftBlinker or CS.rightBlinker)
     self.speed_check |= CS.standstill
@@ -1097,7 +1102,7 @@ class Controls:
       self.previous_speed_limit = desired_speed_limit
 
       if self.CP.pcmCruise and self.speed_limit_changed:
-        if any(be.type == ButtonType.accelCruise for be in CS.buttonEvents):
+        if self.resume_pressed:
           self.params_memory.put_bool("SLCConfirmed", True)
           self.params_memory.put_bool("SLCConfirmedPressed", True)
         elif any(be.type == ButtonType.decelCruise for be in CS.buttonEvents):
@@ -1131,7 +1136,7 @@ class Controls:
 
     FPCC = custom.FrogPilotCarControl.new_message()
     FPCC.alwaysOnLateral = self.always_on_lateral_active
-    FPCC.resumePressed = any(be.type == ButtonType.accelCruise for be in CS.buttonEvents)
+    FPCC.resumePressed = self.resume_pressed or self.resume_previously_pressed
     FPCC.speedLimitChanged = self.speed_limit_changed
 
     return FPCC

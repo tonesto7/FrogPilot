@@ -61,15 +61,17 @@ def update_maps(now, params, params_memory):
   suffix = "th" if 4 <= day <= 20 or 24 <= day <= 30 else ["st", "nd", "rd"][day % 10 - 1]
   todays_date = now.strftime(f"%B {day}{suffix}, %Y")
 
-  if params.get("LastMapsUpdate") == todays_date:
+  if params.get("LastMapsUpdate", encoding='utf-8') == todays_date:
     return
 
   if params.get("OSMDownloadProgress") is None:
     params_memory.put("OSMDownloadLocations", maps_selected)
     params.put("LastMapsUpdate", todays_date)
 
-def frogpilot_thread(frogpilot_toggles):
+def frogpilot_thread():
   config_realtime_process(5, Priority.CTRL_LOW)
+
+  frogpilot_toggles = FrogPilotVariables.toggles
 
   params = Params()
   params_memory = Params("/dev/shm/params")
@@ -83,8 +85,8 @@ def frogpilot_thread(frogpilot_toggles):
   update_toggles = False
 
   pm = messaging.PubMaster(['frogpilotPlan'])
-  sm = messaging.SubMaster(['carState', 'controlsState', 'deviceState', 'frogpilotCarControl', 'frogpilotCarState',
-                            'frogpilotNavigation', 'frogpilotPlan', 'longitudinalPlan', 'modelV2', 'radarState'],
+  sm = messaging.SubMaster(['carState', 'controlsState', 'deviceState', 'frogpilotCarControl',
+                            'frogpilotCarState', 'frogpilotNavigation', 'modelV2', 'radarState'],
                             poll='modelV2', ignore_avg_freq=['radarState'])
 
   while True:
@@ -107,7 +109,7 @@ def frogpilot_thread(frogpilot_toggles):
     elif update_toggles:
       FrogPilotVariables.update_frogpilot_params(started)
 
-      if not frogpilot_toggles.model_selector:
+      if not frogpilot_toggles.model_manager:
         params.put("Model", DEFAULT_MODEL)
         params.put("ModelName", DEFAULT_MODEL_NAME)
 
@@ -131,7 +133,7 @@ def frogpilot_thread(frogpilot_toggles):
       theme_manager.update_holiday()
 
 def main():
-  frogpilot_thread(FrogPilotVariables.toggles)
+  frogpilot_thread()
 
 if __name__ == "__main__":
   main()

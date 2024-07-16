@@ -401,6 +401,9 @@ void ui_update_frogpilot_params(UIState *s) {
   bool radarless_model = params.get("Model") == "radical-turtle";
   scene.lead_detection_threshold = longitudinal_tune && !radarless_model ? params.getInt("LeadDetectionThreshold") / 100.0f : 0.5;
 
+  bool model_manager = params.getBool("ModelManagement");
+  scene.model_randomizer = model_manager && params.getBool("ModelRandomizer");
+
   scene.model_ui = params.getBool("ModelUI");
   scene.dynamic_path_width = scene.model_ui && params.getBool("DynamicPathWidth");
   scene.hide_lead_marker = scene.model_ui && params.getBool("HideLeadMarker");
@@ -471,6 +474,8 @@ void UIState::updateStatus() {
     if (scene.started) {
       status = STATUS_DISENGAGED;
       scene.started_frame = sm->frame;
+    } else if (scene.started_timer > 15*60*UI_FREQ && scene.model_randomizer) {
+      emit reviewModel();
     }
     started_prev = scene.started;
     scene.world_objects_visible = false;
@@ -528,12 +533,17 @@ void UIState::update() {
     update_toggles = false;
   }
 
+  if (paramsMemory.getBool("DriveRated")) {
+    emit driveRated();
+    paramsMemory.remove("DriveRated");
+  }
+
   // FrogPilot variables that need to be constantly updated
   scene.conditional_status = scene.conditional_experimental && scene.enabled ? paramsMemory.getInt("CEStatus") : 0;
   scene.current_holiday_theme = scene.holiday_themes ? paramsMemory.getInt("CurrentHolidayTheme") : 0;
   scene.current_random_event = scene.random_events ? paramsMemory.getInt("CurrentRandomEvent") : 0;
   scene.driver_camera_timer = scene.driver_camera && scene.reverse ? scene.driver_camera_timer + 1 : 0;
-  scene.started_timer = scene.started ? scene.started_timer + 1 : 0;
+  scene.started_timer = scene.started || started_prev ? scene.started_timer + 1 : 0;
 }
 
 void UIState::setPrimeType(PrimeType type) {

@@ -164,7 +164,7 @@ def hw_state_thread(end_event, hw_queue):
     time.sleep(DT_HW)
 
 
-def hardware_thread(end_event, hw_queue, frogpilot_toggles) -> None:
+def hardware_thread(end_event, hw_queue) -> None:
   pm = messaging.PubMaster(['deviceState', 'frogpilotDeviceState'])
   sm = messaging.SubMaster(["peripheralState", "gpsLocationExternal", "controlsState", "pandaStates"], poll="pandaStates")
 
@@ -207,6 +207,8 @@ def hardware_thread(end_event, hw_queue, frogpilot_toggles) -> None:
   fan_controller = None
 
   # FrogPilot variables
+  frogpilot_toggles = FrogPilotVariables.toggles
+
   update_toggles = False
 
   while not end_event.is_set():
@@ -470,7 +472,7 @@ def main():
 
   threads = [
     threading.Thread(target=hw_state_thread, args=(end_event, hw_queue)),
-    threading.Thread(target=hardware_thread, args=(end_event, hw_queue, FrogPilotVariables.toggles)),
+    threading.Thread(target=hardware_thread, args=(end_event, hw_queue)),
   ]
 
   for t in threads:

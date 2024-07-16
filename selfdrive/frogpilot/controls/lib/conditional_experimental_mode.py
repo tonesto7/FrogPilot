@@ -2,8 +2,11 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MovingAverageCalculator
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, CRUISING_SPEED, PROBABILITY, TRAJECTORY_SIZE
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, PROBABILITY
 from openpilot.selfdrive.frogpilot.controls.lib.speed_limit_controller import SpeedLimitController
+
+MODEL_LENGTH = ModelConstants.IDX_N
+PLANNER_TIME = ModelConstants.T_IDXS[MODEL_LENGTH - 1]
 
 class ConditionalExperimentalMode:
   def __init__(self):
@@ -17,14 +20,14 @@ class ConditionalExperimentalMode:
     self.slow_lead_mac = MovingAverageCalculator()
     self.stop_light_mac = MovingAverageCalculator()
 
-  def update(self, carState, forcing_stop, frogpilotNavigation, modelData, model_length, road_curvature, slower_lead, tracking_lead, v_ego, v_lead, frogpilot_toggles):
+  def update(self, carState, forcing_stop, frogpilotNavigation, modelData, model_length, model_stopped, road_curvature, slower_lead, tracking_lead, v_ego, v_lead, frogpilot_toggles):
     if frogpilot_toggles.experimental_mode_via_press:
       self.status_value = self.params_memory.get_int("CEStatus")
     else:
       self.status_value = 0
 
     if self.status_value not in {1, 2, 3, 4, 5, 6} and not carState.standstill:
-      self.update_conditions(forcing_stop, model_length, road_curvature, slower_lead, tracking_lead, v_ego, v_lead, frogpilot_toggles)
+      self.update_conditions(model_length, model_stopped, road_curvature, slower_lead, tracking_lead, v_ego, v_lead, frogpilot_toggles)
       self.experimental_mode = self.check_conditions(carState, forcing_stop, frogpilotNavigation, modelData, tracking_lead, v_ego, v_lead, frogpilot_toggles)
       self.params_memory.put_int("CEStatus", self.status_value if self.experimental_mode else 0)
     else:
@@ -62,16 +65,16 @@ class ConditionalExperimentalMode:
 
     return False
 
-  def update_conditions(self, forcing_stop, model_length, road_curvature, slower_lead, tracking_lead, v_ego, v_lead, frogpilot_toggles):
+  def update_conditions(self, model_length, model_stopped, road_curvature, slower_lead, tracking_lead, v_ego, v_lead, frogpilot_toggles):
     self.road_curvature(road_curvature, v_ego, frogpilot_toggles)
     self.slow_lead(slower_lead, tracking_lead, v_lead, frogpilot_toggles)
-    self.stop_sign_and_light(forcing_stop, model_length, tracking_lead, v_ego, frogpilot_toggles)
+    self.stop_sign_and_light(model_length, model_stopped, tracking_lead, v_ego, frogpilot_toggles)
 
   def road_curvature(self, road_curvature, v_ego, frogpilot_toggles):
     curve_detected = (1 / road_curvature)**0.5 < v_ego
     curve_active = (1.1 / road_curvature)**0.5 < v_ego and self.curve_detected
 
-    self.curvature_mac.add_data((curve_detected or curve_active) and v_ego > CRUISING_SPEED)
+    self.curvature_mac.add_data(curve_detected or curve_active)
     self.curve_detected = self.curvature_mac.get_moving_average() >= PROBABILITY
 
   def slow_lead(self, slower_lead, tracking_lead, v_lead, frogpilot_toggles):
@@ -85,14 +88,13 @@ class ConditionalExperimentalMode:
       self.slow_lead_mac.reset_data()
       self.slow_lead_detected = False
 
-  def stop_sign_and_light(self, forcing_stop, model_length, tracking_lead, v_ego, frogpilot_toggles):
+  def stop_sign_and_light(self, model_length, model_stopped, tracking_lead, v_ego, frogpilot_toggles):
     if self.curve_detected or tracking_lead:
       self.stop_light_mac.reset_data()
       self.stop_light_detected = False
     else:
-      model_projection = ModelConstants.T_IDXS[TRAJECTORY_SIZE - (5 if frogpilot_toggles.less_sensitive_lights else 3)]
-      model_stopped = model_length < TRAJECTORY_SIZE
+      model_projection = PLANNER_TIME - (5 if frogpilot_toggles.less_sensitive_lights else 3)
       model_stopping = model_length < v_ego * model_projection
 
-      self.stop_light_mac.add_data(forcing_stop or model_stopped or model_stopping)
+      self.stop_light_mac.add_data(model_stopped or model_stopping)
       self.stop_light_detected = self.stop_light_mac.get_moving_average() >= PROBABILITY

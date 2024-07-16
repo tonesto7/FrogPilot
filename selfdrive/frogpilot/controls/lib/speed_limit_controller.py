@@ -27,6 +27,7 @@ class SpeedLimitController:
 
     self.car_speed_limit = 0  # m/s
     self.map_speed_limit = 0  # m/s
+    self.max_speed_limit = 0
     self.nav_speed_limit = 0  # m/s
     self.prv_speed_limit = self.params.get_float("PreviousSpeedLimit")
 
@@ -46,7 +47,7 @@ class SpeedLimitController:
     self.write_map_state(v_ego)
     self.nav_speed_limit = navigationSpeedLimit
 
-    self.v_cruise = v_cruise
+    self.max_speed_limit = v_cruise
 
     self.frogpilot_toggles = frogpilot_toggles
 
@@ -121,8 +122,8 @@ class SpeedLimitController:
     if self.frogpilot_toggles.use_previous_limit:
       return self.prv_speed_limit
 
-    if self.frogpilot_toggles.use_set_speed and self.v_cruise != V_CRUISE_UNSET:
-      return self.v_cruise
+    if self.frogpilot_toggles.use_set_speed and self.max_speed_limit != V_CRUISE_UNSET:
+      return self.max_speed_limit
 
     return 0
 

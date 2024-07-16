@@ -80,25 +80,6 @@ private:
   QVBoxLayout inner_layout;
 };
 
-class FrogPilotDualParamControl : public QFrame {
-  Q_OBJECT
-
-public:
-  FrogPilotDualParamControl(ParamControl *control1, ParamControl *control2, QWidget *parent = nullptr, bool split=false)
-    : QFrame(parent) {
-    QHBoxLayout *hlayout = new QHBoxLayout(this);
-
-    control1->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
-    control1->setMaximumWidth(split ? 850 : 700);
-
-    control2->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-    control2->setMaximumWidth(split ? 700 : 850);
-
-    hlayout->addWidget(control1);
-    hlayout->addWidget(control2);
-  }
-};
-
 class FrogPilotButtonControl : public AbstractControl {
   Q_OBJECT
 
@@ -705,4 +686,30 @@ private:
   Params params;
   QButtonGroup *button_group;
   QMap<QString, QPushButton*> buttons;
+};
+
+class FrogPilotDualParamControl : public QFrame {
+  Q_OBJECT
+
+public:
+  FrogPilotDualParamControl(FrogPilotParamValueControl *control1, FrogPilotParamValueControl *control2, QWidget *parent = nullptr)
+      : QFrame(parent), control1(control1), control2(control2) {
+    QHBoxLayout *hlayout = new QHBoxLayout(this);
+    hlayout->addWidget(control1);
+    hlayout->addWidget(control2);
+  }
+
+  void updateControl(float newMinValue, float newMaxValue, const QString &newLabel, float newDivision = 1.0f) {
+    control1->updateControl(newMinValue, newMaxValue, newLabel, newDivision);
+    control2->updateControl(newMinValue, newMaxValue, newLabel, newDivision);
+  }
+
+  void refresh() {
+    control1->refresh();
+    control2->refresh();
+  }
+
+private:
+  FrogPilotParamValueControl *control1;
+  FrogPilotParamValueControl *control2;
 };

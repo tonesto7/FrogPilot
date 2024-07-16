@@ -50,12 +50,12 @@ struct FrogPilotPlan @0x80ae746ee2596b11 {
   dangerJerk @4 :Float32;
   desiredFollowDistance @5 :Float32;
   forcingStop @6 :Bool;
-  laneWidthLeft @7 :Float32;
-  laneWidthRight @8 :Float32;
-  leadDeparting @9 :Bool;
-  maxAcceleration @10 :Float32;
-  minAcceleration @11 :Float32;
-  redLight @12 :Bool;
+  greenLight @7 :Bool;
+  laneWidthLeft @8 :Float32;
+  laneWidthRight @9 :Float32;
+  leadDeparting @10 :Bool;
+  maxAcceleration @11 :Float32;
+  minAcceleration @12 :Float32;
   roadCurvature @13 :Float32;
   safeObstacleDistance @14 :Int16;
   safeObstacleDistanceStock @15 :Int16;

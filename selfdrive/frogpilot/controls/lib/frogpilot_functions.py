@@ -160,7 +160,7 @@ class FrogPilotFunctions:
     if install_date and install_date.decode('utf-8').startswith("November 21, 2023"):
       params.remove("InstallDate")
 
-    version = 6
+    version = 7
 
     try:
       if params_storage.check_key("ParamConversionVersion"):
@@ -170,6 +170,12 @@ class FrogPilotFunctions:
         print("Converting params...")
     except UnknownKeyName:
       pass
+
+    def model_selector():
+      params.put("ModelManagement", "True")
+
+    # "ModelSelector" param still exists, remove it when this gets cleaned up
+    convert_param("ModelSelector", model_selector)
 
     print("Params successfully converted!")
     params_storage.put_int("ParamConversionVersion", version)

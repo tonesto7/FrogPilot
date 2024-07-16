@@ -2,8 +2,6 @@ import numpy as np
 
 import cereal.messaging as messaging
 
-from cereal import car
-
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import interp
 from openpilot.common.params import Params
@@ -16,13 +14,11 @@ from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import A_CHA
 from openpilot.selfdrive.controls.lib.longitudinal_planner import A_CRUISE_MIN, Lead, get_max_accel
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
-from openpilot.selfdrive.frogpilot.controls.lib.conditional_experimental_mode import ConditionalExperimentalMode
+from openpilot.selfdrive.frogpilot.controls.lib.conditional_experimental_mode import MODEL_LENGTH, PLANNER_TIME, ConditionalExperimentalMode
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MovingAverageCalculator, calculate_lane_width, calculate_road_curvature
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, CRUISING_SPEED, PROBABILITY, TRAJECTORY_SIZE
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, CRUISING_SPEED, PROBABILITY
 from openpilot.selfdrive.frogpilot.controls.lib.map_turn_speed_controller import MapTurnSpeedController
 from openpilot.selfdrive.frogpilot.controls.lib.speed_limit_controller import SpeedLimitController
-
-ButtonType = car.CarState.ButtonEvent.Type
 
 A_CRUISE_MIN_ECO = A_CRUISE_MIN / 5
 A_CRUISE_MIN_SPORT = A_CRUISE_MIN / 2
@@ -33,7 +29,7 @@ A_CRUISE_MAX_VALS_SPORT = [4.0, 3.5, 3.0, 1.0, 0.9, 0.8, 0.6]
 
 TRAFFIC_MODE_BP = [0., CITY_SPEED_LIMIT]
 
-TARGET_LAT_A = 1.9  # m/s^2
+TARGET_LAT_A = 1.9
 
 def get_max_accel_eco(v_ego):
   return interp(v_ego, A_CRUISE_MAX_BP_CUSTOM, A_CRUISE_MAX_VALS_ECO)
@@ -51,6 +47,7 @@ class FrogPilotPlanner:
 
     self.forcing_stop = False
     self.lead_departing = False
+    self.model_stopped = False
     self.override_force_stop = False
     self.override_slc = False
     self.slower_lead = False
@@ -85,14 +82,14 @@ class FrogPilotPlanner:
 
     v_cruise = min(controlsState.vCruise, V_CRUISE_UNSET) * CV.KPH_TO_MS
     v_ego = max(carState.vEgo, 0)
-    v_lead = max(self.lead_one.vLead, modelData.leadsV3[0].v[0])
+    v_lead = self.lead_one.vLead
 
     distance_offset = max(frogpilot_toggles.increased_stopping_distance + min(CITY_SPEED_LIMIT - v_ego, 0), 0) if not frogpilotCarState.trafficModeActive else 0
     lead_distance = self.lead_one.dRel - distance_offset
     stopping_distance = STOP_DISTANCE + distance_offset
 
     if (frogpilot_toggles.conditional_experimental_mode or frogpilot_toggles.force_stops) and controlsState.enabled:
-      self.cem.update(carState, self.forcing_stop, frogpilotNavigation, modelData, self.model_length, self.road_curvature, self.slower_lead, self.tracking_lead, v_ego, v_lead, frogpilot_toggles)
+      self.cem.update(carState, self.forcing_stop, frogpilotNavigation, modelData, self.model_length, self.model_stopped, self.road_curvature, self.slower_lead, self.tracking_lead, v_ego, v_lead, frogpilot_toggles)
 
     check_lane_width = frogpilot_toggles.adjacent_lanes or frogpilot_toggles.blind_spot_path or frogpilot_toggles.lane_detection
     if check_lane_width and v_ego >= frogpilot_toggles.minimum_lane_change_speed:
@@ -112,7 +109,9 @@ class FrogPilotPlanner:
       self.lead_departing = False
       self.tracking_lead_distance = 0
 
-    self.model_length = modelData.position.x[TRAJECTORY_SIZE - 1]
+    self.model_length = modelData.position.x[MODEL_LENGTH - 1]
+    self.model_stopped = self.model_length < CRUISING_SPEED * PLANNER_TIME
+    self.model_stopped |= self.forcing_stop
     self.override_force_stop |= carState.gasPressed
     self.override_force_stop |= frogpilot_toggles.force_stops and carState.standstill and self.tracking_lead
     self.override_force_stop |= frogpilotCarControl.resumePressed
@@ -123,7 +122,7 @@ class FrogPilotPlanner:
 
     self.set_acceleration(controlsState, frogpilotCarState, v_cruise, v_ego, frogpilot_toggles)
     self.set_follow_values(controlsState, frogpilotCarState, lead_distance, stopping_distance, v_ego, v_lead, frogpilot_toggles)
-    self.set_lead_status(carState, lead_distance, stopping_distance)
+    self.set_lead_status(lead_distance, stopping_distance, v_ego)
     self.update_v_cruise(carState, controlsState, frogpilotCarState, frogpilotNavigation, modelData, v_cruise, v_ego, frogpilot_toggles)
 
   def set_acceleration(self, controlsState, frogpilotCarState, v_cruise, v_ego, frogpilot_toggles):
@@ -201,9 +200,9 @@ class FrogPilotPlanner:
       self.danger_jerk = self.base_danger_jerk
       self.speed_jerk = self.base_speed_jerk
 
-  def set_lead_status(self, carState, lead_distance, stopping_distance):
-    following_lead = self.lead_one.status and lead_distance < max(self.model_length, stopping_distance) + TRAJECTORY_SIZE
-    following_lead &= not carState.standstill or self.tracking_lead
+  def set_lead_status(self, lead_distance, stopping_distance, v_ego):
+    following_lead = self.lead_one.status and 1 < lead_distance < max(self.model_length, stopping_distance) + MODEL_LENGTH
+    following_lead &= v_ego > CRUISING_SPEED or self.tracking_lead
 
     self.tracking_lead_mac.add_data(following_lead)
     self.tracking_lead = self.tracking_lead_mac.get_moving_average() >= PROBABILITY
@@ -298,7 +297,7 @@ class FrogPilotPlanner:
 
       self.forcing_stop = True
       self.tracked_model_length -= v_ego * DT_MDL
-      self.v_cruise = min(self.tracked_model_length / ModelConstants.T_IDXS[TRAJECTORY_SIZE - 1] - 1, v_cruise)
+      self.v_cruise = min((self.tracked_model_length / PLANNER_TIME) - 1, v_cruise)
 
     else:
       if not self.cem.stop_light_detected:
@@ -334,6 +333,8 @@ class FrogPilotPlanner:
 
     frogpilotPlan.forcingStop = self.forcing_stop
 
+    frogpilotPlan.greenLight = not self.model_stopped
+
     frogpilotPlan.laneWidthLeft = self.lane_width_left
     frogpilotPlan.laneWidthRight = self.lane_width_right
 
@@ -341,8 +342,6 @@ class FrogPilotPlanner:
 
     frogpilotPlan.maxAcceleration = float(self.max_accel)
     frogpilotPlan.minAcceleration = float(self.min_accel)
-
-    frogpilotPlan.redLight = self.cem.stop_light_detected
 
     frogpilotPlan.roadCurvature = self.road_curvature
 

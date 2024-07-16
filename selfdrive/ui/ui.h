@@ -160,6 +160,7 @@ typedef struct UIScene {
   bool lead_info;
   bool live_valid;
   bool map_open;
+  bool model_randomizer;
   bool model_ui;
   bool numerical_temp;
   bool online;
@@ -299,6 +300,9 @@ signals:
   void primeChanged(bool prime);
   void primeTypeChanged(PrimeType prime_type);
 
+  // FrogPilot signals
+  void driveRated();
+  void reviewModel();
 private slots:
   void update();
 
