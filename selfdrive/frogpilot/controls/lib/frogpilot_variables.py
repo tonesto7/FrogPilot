@@ -8,7 +8,6 @@ from cereal import car
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.params import Params
 from openpilot.selfdrive.controls.lib.desire_helper import LANE_CHANGE_SPEED_MIN
-from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.system.version import get_build_metadata
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH

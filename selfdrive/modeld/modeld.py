@@ -28,10 +28,10 @@ from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogP
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL
 
+frogpilot_toggles = FrogPilotVariables.toggles
+
 PROCESS_NAME = "selfdrive.modeld.modeld"
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')
-
-frogpilot_toggles = FrogPilotVariables.toggles
 
 MODEL_NAME = frogpilot_toggles.model
 

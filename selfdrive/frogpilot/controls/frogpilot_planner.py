@@ -12,7 +12,6 @@ from openpilot.selfdrive.controls.lib.drive_helpers import V_CRUISE_UNSET
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import A_CHANGE_COST, COMFORT_BRAKE, DANGER_ZONE_COST, J_EGO_COST, STOP_DISTANCE, \
                                                                            get_jerk_factor, get_safe_obstacle_distance, get_stopped_equivalence_factor, get_T_FOLLOW
 from openpilot.selfdrive.controls.lib.longitudinal_planner import A_CRUISE_MIN, Lead, get_max_accel
-from openpilot.selfdrive.modeld.constants import ModelConstants
 
 from openpilot.selfdrive.frogpilot.controls.lib.conditional_experimental_mode import MODEL_LENGTH, PLANNER_TIME, ConditionalExperimentalMode
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MovingAverageCalculator, calculate_lane_width, calculate_road_curvature
@@ -147,9 +146,9 @@ class FrogPilotPlanner:
       if frogpilot_toggles.acceleration_profile == 1:
         self.max_accel = get_max_accel_eco(v_ego)
       elif frogpilot_toggles.acceleration_profile == 2:
-          self.max_accel = get_max_accel_sport(v_ego)
+        self.max_accel = get_max_accel_sport(v_ego)
       elif frogpilot_toggles.acceleration_profile == 3:
-          self.max_accel = get_max_accel_sport_plus(v_ego)
+        self.max_accel = get_max_accel_sport_plus(v_ego)
       elif controlsState.experimentalMode:
         self.max_accel = ACCEL_MAX
       else:

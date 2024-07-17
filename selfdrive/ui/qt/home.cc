@@ -9,12 +9,12 @@
 #include "selfdrive/ui/qt/util.h"
 #include "selfdrive/ui/qt/widgets/prime.h"
 
-#include "selfdrive/frogpilot/ui/qt/widgets/drive_stats.h"
-#include "selfdrive/frogpilot/ui/qt/widgets/model_reviewer.h"
-
 #ifdef ENABLE_MAPS
 #include "selfdrive/ui/qt/maps/map_settings.h"
 #endif
+
+#include "selfdrive/frogpilot/ui/qt/widgets/drive_stats.h"
+#include "selfdrive/frogpilot/ui/qt/widgets/model_reviewer.h"
 
 // HomeWindow: the container for the offroad and onroad UIs
 
@@ -165,7 +165,7 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
     home_layout->setContentsMargins(0, 0, 0, 0);
     home_layout->setSpacing(30);
 
-    // left: MapSettings/PrimeAdWidget
+    // left: MapSettings
     QStackedWidget *left_widget = new QStackedWidget(this);
 #ifdef ENABLE_MAPS
     left_widget->addWidget(new MapSettings);
