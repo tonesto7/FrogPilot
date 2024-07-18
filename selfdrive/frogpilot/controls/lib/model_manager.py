@@ -30,13 +30,6 @@ def get_repository_url():
 
   return None
 
-def get_base_url():
-  base_url = get_repository_url()
-  if base_url is None:
-    print("Cannot determine base URL. Exiting...")
-    return None
-  return base_url
-
 def get_remote_file_size(url):
   try:
     response = requests.head(url, timeout=10)
@@ -50,7 +43,7 @@ def delete_file(file):
   if os.path.exists(file):
     os.remove(file)
 
-def handle_download_error(destination, params_memory, error_message, error):
+def handle_download_error(destination, error_message, error, params_memory):
   print(f"Error occurred: {error}")
   params_memory.put("ModelDownloadProgress", error_message)
   delete_file(destination)
@@ -85,42 +78,39 @@ def download_file(destination, url, params_memory):
               params_memory.put("ModelDownloadProgress", "Verifying authenticity...")
 
   except requests.HTTPError as http_error:
-    handle_download_error(destination, params_memory, f"Failed: Server error ({http_error.response.status_code})", http_error)
+    handle_download_error(destination, f"Failed: Server error ({http_error.response.status_code})", http_error, params_memory)
   except requests.ConnectionError as connection_error:
-    handle_download_error(destination, params_memory, "Failed: Connection dropped...", connection_error)
+    handle_download_error(destination, "Failed: Connection dropped...", connection_error, params_memory)
   except requests.Timeout as timeout_error:
-    handle_download_error(destination, params_memory, "Failed: Download timed out...", timeout_error)
+    handle_download_error(destination, "Failed: Download timed out...", timeout_error, params_memory)
   except requests.RequestException as request_error:
-    handle_download_error(destination, params_memory, "Failed: Network request error. Check connection.", request_error)
+    handle_download_error(destination, "Failed: Network request error. Check connection.", request_error, params_memory)
   except Exception as e:
-    handle_download_error(destination, params_memory, "Failed: Unexpected error.", e)
+    handle_download_error(destination, "Failed: Unexpected error.", e, params_memory)
 
-def handle_existing_model(params_memory, model):
+def handle_existing_model(model, params_memory):
   error_message = f"Model {model} already exists, skipping download..."
   print(error_message)
   params_memory.put("ModelDownloadProgress", "Model already exists...")
   params_memory.remove("ModelToDownload")
 
-def handle_verification_failure(params_memory, model, model_path, model_url, second_attempt=False):
-  if not second_attempt:
-    handle_download_error(model_path, params_memory, "Issue connecting to Github, trying Gitlab", f"Model {model} verification failed. The file might be corrupted. Redownloading from Gitlab...")
-    second_repo_url = GITLAB_REPOSITORY_URL
-    second_model_url = f"{second_repo_url}Models/{model}.thneed"
-    download_file(model_path, second_model_url, params_memory)
+def handle_verification_failure(model, model_path, model_url, params_memory):
+  handle_download_error(model_path, "Issue connecting to Github, trying Gitlab", f"Model {model} verification failed. The file might be corrupted. Redownloading from Gitlab...", params_memory)
+  second_repo_url = GITLAB_REPOSITORY_URL
+  second_model_url = f"{second_repo_url}Models/{model}.thneed"
+  download_file(model_path, second_model_url, params_memory)
 
-    if verify_download(model_path, second_model_url):
-      print(f"Model {model} redownloaded and verified successfully from Gitlab.")
-    else:
-      print(f"Model {model} redownload verification failed from Gitlab. The file might be corrupted.")
+  if verify_download(model_path, second_model_url):
+    print(f"Model {model} redownloaded and verified successfully from Gitlab.")
   else:
-    print(f"Model {model} verification failed after second attempt. The file might be corrupted.")
+    print(f"Model {model} redownload verification failed from Gitlab. The file might be corrupted.")
 
 def download_model(params_memory):
   model = params_memory.get("ModelToDownload", encoding='utf-8')
   model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
 
   if os.path.exists(model_path):
-    handle_existing_model(params_memory, model)
+    handle_existing_model(model, params_memory)
     return
 
   repo_url = get_repository_url()
@@ -134,7 +124,7 @@ def download_model(params_memory):
       params_memory.put("ModelDownloadProgress", "Downloaded!")
       params_memory.remove("ModelToDownload")
     else:
-      handle_verification_failure(params_memory, model, model_path, model_url)
+      handle_verification_failure(model, model_path, model_url, params_memory)
   else:
     error_message = "Github and Gitlab are offline..."
     print(error_message)
@@ -211,18 +201,16 @@ def are_all_models_downloaded(params, params_memory):
 
     if not os.path.exists(model_path) or not verify_download(model_path, model_url):
       if params.get_bool("AutomaticallyUpdateModels"):
-        if os.path.exists(model_path):
-          delete_file(model_path)
+        delete_file(model_path)
         while params_memory.get("ModelToDownload") is not None:
           time.sleep(1)
         params_memory.put("ModelToDownload", model)
-        download_model(params_memory)
       all_models_downloaded = False
 
   return all_models_downloaded
 
 def update_models(params, params_memory, boot_run=True, started=False):
-  base_url = get_base_url()
+  base_url = get_repository_url()
   if base_url is None:
     return
 

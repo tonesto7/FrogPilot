@@ -9,7 +9,7 @@ from openpilot.common.time import system_time_valid
 from openpilot.system.hardware import HARDWARE
 
 from openpilot.selfdrive.frogpilot.controls.frogpilot_planner import FrogPilotPlanner
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import FrogPilotFunctions, is_url_pingable
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import backup_toggles, is_url_pingable
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_model, update_models
 from openpilot.selfdrive.frogpilot.controls.lib.theme_manager import ThemeManager
@@ -34,17 +34,14 @@ def time_checks(automatic_updates, deviceState, now, started, params, params_mem
 
   screen_off = deviceState.screenBrightnessPercent == 0
   wifi_connection = deviceState.networkType == WIFI
-
-  if screen_off and wifi_connection:
-    if automatic_updates:
-      automatic_update_check(started, params)
+  if automatic_updates and screen_off and wifi_connection:
+    automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
   update_models(params, params_memory, False, started)
 
 def update_maps(now, params, params_memory):
-  maps_selected = params.get("MapsSelected")
-
+  maps_selected = params.get("MapsSelected", encoding='utf8')
   if maps_selected is None:
     return
 
@@ -54,7 +51,6 @@ def update_maps(now, params, params_memory):
   schedule = params.get_int("PreferredSchedule")
 
   maps_downloaded = os.path.exists('/data/media/0/osm/offline')
-
   if maps_downloaded and (schedule == 0 or (schedule == 1 and not is_Sunday) or (schedule == 2 and not is_first)):
     return
 
@@ -64,7 +60,7 @@ def update_maps(now, params, params_memory):
   if params.get("LastMapsUpdate", encoding='utf-8') == todays_date:
     return
 
-  if params.get("OSMDownloadProgress") is None:
+  if params.get("OSMDownloadProgress", encoding='utf-8') is None:
     params_memory.put("OSMDownloadLocations", maps_selected)
     params.put("LastMapsUpdate", todays_date)
 
@@ -75,8 +71,8 @@ def frogpilot_thread():
 
   params = Params()
   params_memory = Params("/dev/shm/params")
+  params_storage = Params("/persist/params")
 
-  frogpilot_functions = FrogPilotFunctions()
   frogpilot_planner = FrogPilotPlanner()
   theme_manager = ThemeManager()
 
@@ -88,6 +84,8 @@ def frogpilot_thread():
   sm = messaging.SubMaster(['carState', 'controlsState', 'deviceState', 'frogpilotCarControl',
                             'frogpilotCarState', 'frogpilotNavigation', 'modelV2', 'radarState'],
                             poll='modelV2', ignore_avg_freq=['radarState'])
+
+  update_models(params, params_memory)
 
   while True:
     sm.update()
@@ -114,7 +112,7 @@ def frogpilot_thread():
         params.put("ModelName", DEFAULT_MODEL_NAME)
 
       if time_validated and not started:
-        frogpilot_functions.backup_toggles()
+        backup_toggles(params, params_storage)
 
       update_toggles = False
 

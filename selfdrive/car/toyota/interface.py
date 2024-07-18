@@ -139,7 +139,7 @@ class CarInterface(CarInterfaceBase):
     if params.get_bool("CydiaTune") or params.get_bool("FrogsGoMooTune"):
       ret.stopAccel = -2.5             # on stock Toyota this is -2.5
       ret.stoppingDecelRate = 0.3      # reach stopping target smoothly
-      if candidate in TSS2_CAR:
+      if candidate in TSS2_CAR or ret.enableGasInterceptor:
         tune.kpV = [0.0]
         tune.kiV = [0.5]
         if params.get_bool("FrogsGoMooTune"):

@@ -456,6 +456,8 @@ def get_all_toggle_values():
 def store_toggle_values(updated_values):
   for key, value in updated_values.items():
     try:
+      if isinstance(value, (int, float)):
+        value = str(value)
       params.put(key, value.encode('utf-8'))
       params_storage.put(key, value.encode('utf-8'))
     except Exception as e:
