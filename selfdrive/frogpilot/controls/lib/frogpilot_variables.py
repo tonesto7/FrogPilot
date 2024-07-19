@@ -1,4 +1,6 @@
 import os
+import random
+import re
 
 from types import SimpleNamespace
 
@@ -14,6 +16,14 @@ from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MOD
 CITY_SPEED_LIMIT = 25  # 55mph is typically the minimum speed for highways
 CRUISING_SPEED = 5     # Roughly the speed cars go when not touching the gas while in drive
 PROBABILITY = 0.6      # 60% chance of condition being true
+
+def process_model_name(model_name):
+  model_cleaned = re.sub(r'[🗺️👀📡]', '', model_name).strip()
+  score_param = re.sub(r'[^a-zA-Z0-9()-]', '', model_cleaned).replace(' ', '').strip()
+  score_param = score_param.replace('(Default)', '').replace('-', '')
+  cleaned_name = ''.join(score_param.split())
+  print(f'Processed Model Name: {cleaned_name}')
+  return cleaned_name
 
 class FrogPilotVariables:
   def __init__(self):
@@ -186,7 +196,15 @@ class FrogPilotVariables:
     current_model = self.params_memory.get("CurrentModel", encoding='utf-8')
     current_model_name = self.params_memory.get("CurrentModelName", encoding='utf-8')
     if toggle.model_manager and available_models is not None and current_model is None:
-      if toggle.model_manager:
+      toggle.model_randomizer = toggle.model_manager and self.params.get_bool("ModelRandomizer")
+      if toggle.model_randomizer:
+        blacklisted_models = (self.params.get("BlacklistedModels", encoding='utf-8') or '').split(',')
+        existing_models = [model for model in available_models.split(',') if model not in blacklisted_models and os.path.exists(os.path.join(MODELS_PATH, f"{model}.thneed"))]
+        if existing_models:
+          toggle.model = random.choice(existing_models)
+        else:
+          toggle.model = DEFAULT_MODEL
+      elif toggle.model_manager:
         toggle.model = self.params.get("Model", block=True, encoding='utf-8')
       else:
         toggle.model = DEFAULT_MODEL
