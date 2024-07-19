@@ -290,6 +290,9 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
         btn->setEnabled(offroad);
       }
     }
+    for (auto btn : findChildren<FrogPilotButtonsControl *>()) {
+      btn->setEnabled(offroad);
+    }
   });
 
   // Delete driving footage

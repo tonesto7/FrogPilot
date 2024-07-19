@@ -6,7 +6,6 @@ import time
 import urllib.request
 
 from openpilot.common.basedir import BASEDIR
-from openpilot.system.version import get_build_metadata
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH, is_url_pingable
 
@@ -43,6 +42,9 @@ def get_remote_file_size(url):
 def delete_file(file):
   if os.path.exists(file):
     os.remove(file)
+    print(f"Deleted file: {file}")
+  else:
+    print(f"File not found: {file}")
 
 def handle_download_error(destination, error_message, error, params_memory):
   print(f"Error occurred: {error}")
@@ -141,13 +143,13 @@ def fetch_model_info(url):
     print(f"Failed to update models list. Error: {e}")
     return None
 
-def update_model_lists(model_info, params):
+def update_model_lists(model_info, release, params):
   available_models = []
   available_model_names = []
 
   for model in model_info:
     model_name = model[0]
-    if get_build_metadata().release_channel:
+    if release:
       if model_name not in STAGING_MODELS:
         available_models.append(model_name)
         available_model_names.append(model[1])
@@ -212,7 +214,7 @@ def are_all_models_downloaded(params, params_memory):
 
   return all_models_downloaded
 
-def update_models(params, params_memory, boot_run=True, started=False):
+def update_models(release, params, params_memory, boot_run=True, started=False):
   try:
     repo_url = get_repository_url()
     if repo_url is None:
@@ -223,7 +225,7 @@ def update_models(params, params_memory, boot_run=True, started=False):
     if model_info is None:
       return
 
-    update_model_lists(model_info, params)
+    update_model_lists(model_info, release, params)
     if not started and not boot_run:
       params.put_bool("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
     if not boot_run:

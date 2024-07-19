@@ -28,7 +28,7 @@ def automatic_update_check(started, params):
   elif update_state_idle:
     os.system("pkill -SIGUSR1 -f system.updated.updated")
 
-def time_checks(automatic_updates, deviceState, now, started, params, params_memory):
+def time_checks(automatic_updates, deviceState, is_release, now, started, params, params_memory):
   if not is_url_pingable("https://github.com"):
     return
 
@@ -38,7 +38,7 @@ def time_checks(automatic_updates, deviceState, now, started, params, params_mem
     automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
-  update_models(params, params_memory, False, started)
+  update_models(is_release, params, params_memory, False, started)
 
 def update_maps(now, params, params_memory):
   maps_selected = params.get("MapsSelected", encoding='utf8')
@@ -76,6 +76,7 @@ def frogpilot_thread():
   frogpilot_planner = FrogPilotPlanner()
   theme_manager = ThemeManager()
 
+  is_release = FrogPilotVariables.release
   run_time_checks = False
   time_validated = system_time_valid()
   update_toggles = False
@@ -98,7 +99,7 @@ def frogpilot_thread():
       frogpilot_planner.publish(sm, pm, frogpilot_toggles)
 
     if params_memory.get("ModelToDownload", encoding='utf-8') is not None:
-      threading.Thread(target=download_model, args=(params_memory,)).start()
+      download_model(params_memory)
 
     if FrogPilotVariables.toggles_updated:
       update_toggles = True
@@ -117,7 +118,7 @@ def frogpilot_thread():
     if now.second == 0:
       run_time_checks = True
     elif run_time_checks or not time_validated:
-      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, now, started, params, params_memory,)).start()
+      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, is_release, now, started, params, params_memory,)).start()
       run_time_checks = False
 
       if not time_validated:
@@ -125,7 +126,7 @@ def frogpilot_thread():
         if not time_validated:
           continue
         else:
-          update_models(params, params_memory)
+          update_models(is_release, params, params_memory)
 
       theme_manager.update_holiday()
 

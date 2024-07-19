@@ -3,6 +3,7 @@ import datetime
 import os
 import signal
 import sys
+import threading
 import traceback
 
 from cereal import log
@@ -21,10 +22,14 @@ from openpilot.system.version import get_build_metadata, terms_version, training
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import frogpilot_boot_functions, setup_frogpilot, uninstall_frogpilot
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME
 
+
+
 def manager_init() -> None:
   save_bootlog()
 
   build_metadata = get_build_metadata()
+
+  setup_frogpilot(build_metadata)
 
   params = Params()
   params_storage = Params("/persist/params")
@@ -33,6 +38,8 @@ def manager_init() -> None:
   params.clear_all(ParamKeyType.CLEAR_ON_OFFROAD_TRANSITION)
   if build_metadata.release_channel:
     params.clear_all(ParamKeyType.DEVELOPMENT_ONLY)
+
+  threading.Thread(target=frogpilot_boot_functions, args=(build_metadata, params, params_storage,)).start()
 
   default_params: list[tuple[str, str | bytes]] = [
     ("CarParamsPersistent", ""),
@@ -489,8 +496,6 @@ def manager_thread() -> None:
 
 
 def main() -> None:
-  setup_frogpilot()
-  frogpilot_boot_functions()
   manager_init()
   if os.getenv("PREPAREONLY") is not None:
     return

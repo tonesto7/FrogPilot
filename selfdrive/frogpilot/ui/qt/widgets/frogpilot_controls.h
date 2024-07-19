@@ -225,6 +225,12 @@ public:
     toggle.hide();
   }
 
+  void setEnabled(bool enable) {
+    for (auto btn : button_group->buttons()) {
+      btn->setEnabled(enable);
+    }
+  }
+
 signals:
   void buttonClicked(int id);
 

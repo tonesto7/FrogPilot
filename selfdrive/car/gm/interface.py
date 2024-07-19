@@ -290,15 +290,13 @@ class CarInterface(CarInterfaceBase):
       ret.openpilotLongitudinalControl = not disable_openpilot_long
       ret.pcmCruise = False
 
-      ret.longitudinalTuning.deadzoneBP = [0.]
-      ret.longitudinalTuning.deadzoneV = [0.56]  # == 2 km/h/s, 1.25 mph/s
       ret.stoppingDecelRate = 11.18  # == 25 mph/s (.04 rate)
-      ret.longitudinalActuatorDelay = 1.  # TODO: measure this
 
-      ret.longitudinalTuning.kpBP = [10.7, 10.8, 28.]  # 10.7 m/s == 24 mph
-      ret.longitudinalTuning.kpV = [0., 20., 20.]  # set lower end to 0 since we can't drive below that speed
-      ret.longitudinalTuning.kiBP = [0.]
-      ret.longitudinalTuning.kiV = [0.1]
+      ret.longitudinalActuatorDelayLowerBound = 1.  # TODO: measure this
+      ret.longitudinalActuatorDelayUpperBound = 2.
+
+      ret.longitudinalTuning.kiBP = [10.7, 10.8, 28.]
+      ret.longitudinalTuning.kiV = [0., 20., 20.]  # set lower end to 0 since we can't drive below that speed
 
     if candidate in CC_ONLY_CAR:
       ret.safetyConfigs[0].safetyParam |= Panda.FLAG_GM_NO_ACC

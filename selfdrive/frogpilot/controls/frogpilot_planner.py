@@ -1,9 +1,7 @@
-import numpy as np
-
 import cereal.messaging as messaging
 
 from openpilot.common.conversions import Conversions as CV
-from openpilot.common.numpy_fast import interp
+from openpilot.common.numpy_fast import clip, interp
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 
@@ -118,7 +116,7 @@ class FrogPilotPlanner:
     self.override_force_stop |= carState.gasPressed
     self.override_force_stop |= frogpilot_toggles.force_stops and carState.standstill and self.tracking_lead
     self.override_force_stop |= frogpilotCarControl.resumePressed
-    self.road_curvature = calculate_road_curvature(modelData, v_ego)
+    self.road_curvature = calculate_road_curvature(modelData, v_ego) if v_ego > CRUISING_SPEED else 1
 
     if frogpilot_toggles.random_events:
       self.taking_curve_quickly = v_ego > (1 / self.road_curvature)**0.5 * 2 > CRUISING_SPEED * 2 and abs(carState.steeringAngleDeg) > 30
@@ -133,7 +131,7 @@ class FrogPilotPlanner:
     sport_gear = frogpilotCarState.sportGear
 
     if self.tracking_lead and frogpilot_toggles.aggressive_acceleration:
-      self.max_accel = np.clip(self.lead_one.aLeadK, get_max_accel_sport_plus(v_ego), 2.0 if v_ego >= 20 else 4.0)
+      self.max_accel = clip(self.lead_one.aLeadK, get_max_accel_sport_plus(v_ego), 2.0 if v_ego >= 20 else 4.0)
     elif frogpilot_toggles.map_acceleration and (eco_gear or sport_gear):
       if eco_gear:
         self.max_accel = get_max_accel_eco(v_ego)
@@ -220,7 +218,7 @@ class FrogPilotPlanner:
     if frogpilot_toggles.aggressive_acceleration and v_lead > v_ego:
       distance_factor = max(lead_distance - (v_ego * self.t_follow), 1)
       standstill_offset = max(stopping_distance - v_ego, 0) * max(v_lead - v_ego, 0)
-      acceleration_offset = np.clip((v_lead - v_ego) + standstill_offset - COMFORT_BRAKE, 1, distance_factor)
+      acceleration_offset = clip((v_lead - v_ego) + standstill_offset - COMFORT_BRAKE, 1, distance_factor)
       self.acceleration_jerk = self.base_acceleration_jerk / acceleration_offset
       self.danger_jerk = self.base_danger_jerk / acceleration_offset
       self.speed_jerk = self.base_speed_jerk / acceleration_offset
@@ -230,7 +228,7 @@ class FrogPilotPlanner:
     if (frogpilot_toggles.conditional_slower_lead or frogpilot_toggles.smoother_braking) and v_lead < v_ego:
       distance_factor = max(lead_distance - (v_lead * self.t_follow), 1)
       far_lead_offset = max(lead_distance - (v_ego * self.t_follow) - stopping_distance + (v_lead - CITY_SPEED_LIMIT), 0)
-      braking_offset = np.clip((v_ego - v_lead) + far_lead_offset - COMFORT_BRAKE, 1, distance_factor)
+      braking_offset = clip((v_ego - v_lead) + far_lead_offset - COMFORT_BRAKE, 1, distance_factor)
       if frogpilot_toggles.smoother_braking:
         self.acceleration_jerk = self.base_acceleration_jerk * min(braking_offset, COMFORT_BRAKE / 2)
         self.danger_jerk = self.base_danger_jerk * min(braking_offset, COMFORT_BRAKE / 2)
@@ -248,7 +246,7 @@ class FrogPilotPlanner:
     # Pfeiferj's Map Turn Speed Controller
     if frogpilot_toggles.map_turn_speed_controller and v_ego > CRUISING_SPEED and controlsState.enabled:
       mtsc_active = self.mtsc_target < v_cruise
-      self.mtsc_target = np.clip(self.mtsc.target_speed(v_ego, carState.aEgo), CRUISING_SPEED, v_cruise)
+      self.mtsc_target = clip(self.mtsc.target_speed(v_ego, carState.aEgo), CRUISING_SPEED, v_cruise)
 
       if frogpilot_toggles.mtsc_curvature_check and self.road_curvature < 1.0 and not mtsc_active:
         self.mtsc_target = v_cruise
@@ -277,7 +275,7 @@ class FrogPilotPlanner:
         if frogpilot_toggles.speed_limit_controller_override_manual:
           if carState.gasPressed:
             self.overridden_speed = v_ego + v_ego_diff
-          self.overridden_speed = np.clip(self.overridden_speed, self.slc_target, v_cruise + v_cruise_diff)
+          self.overridden_speed = clip(self.overridden_speed, self.slc_target, v_cruise + v_cruise_diff)
         elif frogpilot_toggles.speed_limit_controller_override_set_speed:
           self.overridden_speed = v_cruise + v_cruise_diff
       else:
@@ -291,7 +289,7 @@ class FrogPilotPlanner:
       adjusted_target_lat_a = TARGET_LAT_A * frogpilot_toggles.turn_aggressiveness
 
       self.vtsc_target = (adjusted_target_lat_a / adjusted_road_curvature)**0.5
-      self.vtsc_target = np.clip(self.vtsc_target, CRUISING_SPEED, v_cruise)
+      self.vtsc_target = clip(self.vtsc_target, CRUISING_SPEED, v_cruise)
     else:
       self.vtsc_target = v_cruise if v_cruise != V_CRUISE_UNSET else 0
 
