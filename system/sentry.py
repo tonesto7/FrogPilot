@@ -40,26 +40,6 @@ def bind_user() -> None:
   sentry_sdk.set_user({"id": HARDWARE.get_serial()})
 
 
-def capture_tmux() -> None:
-  try:
-    result = subprocess.run(['tmux', 'capture-pane', '-p', '-S', '-250'], stdout=subprocess.PIPE)
-    lines = result.stdout.decode('utf-8').splitlines()
-
-    if lines:
-      while True:
-        if sentry_pinged():
-          with sentry_sdk.configure_scope() as scope:
-            bind_user()
-            scope.set_extra("tmux_log", "\n".join(lines))
-            sentry_sdk.capture_message("User's UI crashed", level='error')
-            sentry_sdk.flush()
-          break
-        time.sleep(60)
-
-  except Exception:
-    cloudlog.exception("Failed to capture tmux log")
-
-
 def report_tombstone(fn: str, message: str, contents: str) -> None:
   FrogPilot = "frogai" in get_build_metadata().openpilot.git_origin.lower()
   if not FrogPilot or PC:
