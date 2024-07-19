@@ -181,39 +181,38 @@ void DistanceButton::buttonReleased() {
 }
 
 void DistanceButton::updateState(const UIScene &scene) {
-  if ((trafficModeActive == scene.traffic_mode_active) &&
-      (personality == static_cast<int>(scene.personality) || trafficModeActive)) {
+  bool stateChanged = (trafficModeActive != scene.traffic_mode_active) ||
+                      (personality != static_cast<int>(scene.personality) && !trafficModeActive);
+
+  if (stateChanged) {
+    personality = static_cast<int>(scene.personality);
+    trafficModeActive = scene.traffic_mode_active;
+
+    int profile = trafficModeActive ? 0 : personality + 1;
+    std::tie(profileImage, profileText) = (scene.use_kaofui_icons ? profileDataKaofui : profileData)[profile];
+
+    transitionTimer.restart();
+    update();
+  } else if (transitionTimer.isValid()) {
+    update();
+  } else {
     return;
   }
-
-  personality = static_cast<int>(scene.personality);
-  trafficModeActive = scene.traffic_mode_active;
-
-  int profile = trafficModeActive ? 0 : personality + 1;
-  std::tie(profileImage, profileText) = (scene.use_kaofui_icons ? profileDataKaofui : profileData)[profile];
-
-  transitionTimer.restart();
-
-  update();
 }
 
 void DistanceButton::paintEvent(QPaintEvent *event) {
   QPainter p(this);
   p.setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing);
 
-  elapsed = transitionTimer.elapsed();
+  int elapsed = transitionTimer.elapsed();
   qreal textOpacity = qBound(0.0, 1.0 - ((elapsed - 3000.0) / 1000.0), 1.0);
   qreal imageOpacity = 1.0 - textOpacity;
 
-  if (textOpacity > 0.0) {
-    p.setOpacity(textOpacity);
-    p.setFont(InterFont(40, QFont::Bold));
-    p.setPen(Qt::white);
-    QRect textRect(-25, 0, width(), height() + btn_size / 2);
-    p.drawText(textRect, Qt::AlignCenter, profileText);
-  }
+  p.setOpacity(textOpacity);
+  p.setFont(InterFont(40, QFont::Bold));
+  p.setPen(Qt::white);
+  QRect textRect(-25, 0, width(), height() + btn_size / 2);
+  p.drawText(textRect, Qt::AlignCenter, profileText);
 
-  if (imageOpacity > 0.0) {
-    drawIcon(p, QPoint((btn_size / 2) * 1.25, btn_size), profileImage, Qt::transparent, imageOpacity);
-  }
+  drawIcon(p, QPoint((btn_size / 2) * 1.25, btn_size), profileImage, Qt::transparent, imageOpacity);
 }

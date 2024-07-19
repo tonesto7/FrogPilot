@@ -199,7 +199,6 @@ def manager_init() -> None:
     ("Model", DEFAULT_MODEL),
     ("ModelManagement", "0"),
     ("ModelName", DEFAULT_MODEL_NAME),
-    ("ModelsDownloaded", "0"),
     ("ModelSelector", "0"),
     ("ModelUI", "1"),
     ("MTSCAggressiveness", "100"),

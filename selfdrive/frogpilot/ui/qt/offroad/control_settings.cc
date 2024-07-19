@@ -1095,7 +1095,8 @@ void FrogPilotControlsPanel::updateCarToggles() {
     auto safetyModel = safetyConfigs[0].getSafetyModel();
 
     hasAutoTune = (carName == "hyundai" || carName == "toyota") && CP.getLateralTuning().which() == cereal::CarParams::LateralTuning::TORQUE;
-    uiState()->scene.has_auto_tune = hasAutoTune;
+    bool forcingAutoTune = params.getBool("LateralTune") && params.getBool("ForceAutoTune");
+    uiState()->scene.has_auto_tune = hasAutoTune || forcingAutoTune;
     hasCommaNNFFSupport = checkCommaNNFFSupport(carFingerprint);
     hasDashSpeedLimits = carName == "hyundai" || carName == "toyota";
     hasNNFFLog = checkNNFFLogFileExists(carFingerprint);

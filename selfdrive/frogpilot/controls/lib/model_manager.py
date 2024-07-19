@@ -1,6 +1,7 @@
 import os
 import requests
 import shutil
+import subprocess
 import time
 import urllib.request
 
@@ -129,6 +130,7 @@ def download_model(params_memory):
     error_message = "Github and Gitlab are offline..."
     print(error_message)
     params_memory.put("ModelDownloadProgress", error_message)
+    params_memory.remove("ModelToDownload")
 
 def fetch_model_info(url):
   try:
@@ -192,6 +194,7 @@ def copy_default_model():
   return True
 
 def are_all_models_downloaded(params, params_memory):
+  automatically_update_models = params.get_bool("AutomaticallyUpdateModels")
   available_models = params.get("AvailableModels", encoding='utf-8').split(',')
   all_models_downloaded = True
 
@@ -200,9 +203,9 @@ def are_all_models_downloaded(params, params_memory):
     model_url = f"{get_repository_url()}Models/{model}.thneed"
 
     if not os.path.exists(model_path) or not verify_download(model_path, model_url):
-      if params.get_bool("AutomaticallyUpdateModels"):
+      if automatically_update_models:
         delete_file(model_path)
-        while params_memory.get("ModelToDownload") is not None:
+        while params_memory.get("ModelToDownload", encoding='utf-8') is not None:
           time.sleep(1)
         params_memory.put("ModelToDownload", model)
       all_models_downloaded = False
@@ -210,22 +213,25 @@ def are_all_models_downloaded(params, params_memory):
   return all_models_downloaded
 
 def update_models(params, params_memory, boot_run=True, started=False):
-  base_url = get_repository_url()
-  if base_url is None:
-    return
+  try:
+    repo_url = get_repository_url()
+    if repo_url is None:
+      return
 
-  url = f"{base_url}Versions/model_names_{VERSION}.txt"
-  model_info = fetch_model_info(url)
-  if model_info is None:
-    return
+    url = f"{repo_url}Versions/model_names_{VERSION}.txt"
+    model_info = fetch_model_info(url)
+    if model_info is None:
+      return
 
-  update_model_lists(model_info, params)
-  if not started and not boot_run:
-    params.put_bool("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
-  if not boot_run:
-    return
+    update_model_lists(model_info, params)
+    if not started and not boot_run:
+      params.put_bool("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
+    if not boot_run:
+      return
 
-  handle_model_deletion(params)
-  validate_current_model(params, params_memory)
-  if not copy_default_model():
+    handle_model_deletion(params)
+    validate_current_model(params, params_memory)
+    copy_default_model()
+  except subprocess.CalledProcessError as e:
+    print(f"Failed to update models. Error: {e}")
     return

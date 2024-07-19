@@ -448,7 +448,7 @@ def main() -> None:
 
     # Run the update loop
     first_run = True
-    install_date_set = params.get("InstallDate") is not None and params.get("Updated") is not None
+    install_date_set = params.get("InstallDate", encoding='utf-8') is not None and params.get("Updated", encoding='utf-8') is not None
 
     while True:
       wait_helper.ready_event.clear()

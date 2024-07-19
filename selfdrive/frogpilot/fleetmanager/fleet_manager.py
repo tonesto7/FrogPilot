@@ -22,11 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import os
-import random
 import requests
 import secrets
-import threading
-import time
 import traceback
 
 import openpilot.selfdrive.frogpilot.fleetmanager.helpers as fleet

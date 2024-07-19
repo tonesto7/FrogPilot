@@ -85,8 +85,6 @@ def frogpilot_thread():
                             'frogpilotCarState', 'frogpilotNavigation', 'modelV2', 'radarState'],
                             poll='modelV2', ignore_avg_freq=['radarState'])
 
-  update_models(params, params_memory)
-
   while True:
     sm.update()
 
@@ -100,7 +98,7 @@ def frogpilot_thread():
       frogpilot_planner.publish(sm, pm, frogpilot_toggles)
 
     if params_memory.get("ModelToDownload", encoding='utf-8') is not None:
-      download_model(params_memory)
+      threading.Thread(target=download_model, args=(params_memory,)).start()
 
     if FrogPilotVariables.toggles_updated:
       update_toggles = True
@@ -119,14 +117,15 @@ def frogpilot_thread():
     if now.second == 0:
       run_time_checks = True
     elif run_time_checks or not time_validated:
-      time_check = threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, now, started, params, params_memory,))
-      time_check.start()
+      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, now, started, params, params_memory,)).start()
       run_time_checks = False
 
       if not time_validated:
         time_validated = system_time_valid()
         if not time_validated:
           continue
+        else:
+          update_models(params, params_memory)
 
       theme_manager.update_holiday()
 
