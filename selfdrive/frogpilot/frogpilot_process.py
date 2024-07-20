@@ -9,7 +9,7 @@ from openpilot.common.time import system_time_valid
 from openpilot.system.hardware import HARDWARE
 
 from openpilot.selfdrive.frogpilot.controls.frogpilot_planner import FrogPilotPlanner
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import is_url_pingable
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import backup_toggles, is_url_pingable
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
 
 OFFLINE = log.DeviceState.NetworkType.none
@@ -44,6 +44,7 @@ def frogpilot_thread():
 
   params = Params()
   params_memory = Params("/dev/shm/params")
+  params_storage = Params("/persist/params")
 
   frogpilot_planner = FrogPilotPlanner()
 
@@ -72,6 +73,9 @@ def frogpilot_thread():
       update_toggles = True
     elif update_toggles:
       threading.Thread(target=FrogPilotVariables.update_frogpilot_params, args=(started,)).start()
+
+      if time_validated and not started:
+        threading.Thread(target=backup_toggles, args=(params, params_storage,)).start()
 
       update_toggles = False
 
