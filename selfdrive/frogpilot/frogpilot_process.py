@@ -11,6 +11,7 @@ from openpilot.system.hardware import HARDWARE
 from openpilot.selfdrive.frogpilot.controls.frogpilot_planner import FrogPilotPlanner
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import backup_toggles, is_url_pingable
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
+from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_all_models, download_model, update_models
 
 OFFLINE = log.DeviceState.NetworkType.none
 
@@ -26,7 +27,7 @@ def automatic_update_check(started, params):
   elif update_state_idle:
     os.system("pkill -SIGUSR1 -f system.updated.updated")
 
-def time_checks(automatic_updates, deviceState, now, started, params, params_memory):
+def time_checks(automatic_updates, deviceState, is_release, now, started, params, params_memory):
   if deviceState.networkType == OFFLINE:
     return
 
@@ -38,6 +39,7 @@ def time_checks(automatic_updates, deviceState, now, started, params, params_mem
     automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
+  update_models(is_release, params, params_memory, False)
 
 def update_maps(now, params, params_memory):
   maps_selected = params.get("MapsSelected", encoding='utf8')
@@ -74,6 +76,9 @@ def frogpilot_thread():
 
   frogpilot_planner = FrogPilotPlanner()
 
+  downloading_all_models = False
+  downloading_model = False
+  is_release = FrogPilotVariables.release
   run_time_checks = False
   time_validated = system_time_valid()
   update_toggles = False
@@ -95,10 +100,29 @@ def frogpilot_thread():
                                sm['frogpilotNavigation'], sm['modelV2'], sm['radarState'], frogpilot_toggles)
       frogpilot_planner.publish(sm, pm, frogpilot_toggles)
 
+    model_to_download = params_memory.get("ModelToDownload", encoding='utf-8')
+    if model_to_download is not None:
+      if not downloading_model:
+        threading.Thread(target=download_model, args=(model_to_download, params_memory,)).start()
+        downloading_model = True
+    else:
+      downloading_model = False
+
+    if params_memory.get_bool("DownloadAllModels"):
+      if not downloading_all_models:
+        threading.Thread(target=download_all_models, args=(params, params_memory,)).start()
+        downloading_all_models = True
+    else:
+      downloading_all_models = False
+
     if FrogPilotVariables.toggles_updated:
       update_toggles = True
     elif update_toggles:
       threading.Thread(target=FrogPilotVariables.update_frogpilot_params, args=(started,)).start()
+
+      if not frogpilot_toggles.model_manager:
+        params.put_nonblocking("Model", DEFAULT_MODEL)
+        params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
 
       if time_validated and not started:
         threading.Thread(target=backup_toggles, args=(params, params_storage,)).start()
@@ -107,14 +131,16 @@ def frogpilot_thread():
 
     if now.second == 0:
       run_time_checks = True
-    elif run_time_checks or not time_validated:
-      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, now, started, params, params_memory,)).start()
+    elif (run_time_checks or not time_validated) and not (downloading_model or downloading_all_models):
+      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, is_release, now, started, params, params_memory,)).start()
       run_time_checks = False
 
       if not time_validated:
         time_validated = system_time_valid()
         if not time_validated:
           continue
+        else:
+          threading.Thread(target=update_models, args=(is_release, params, params_memory,)).start()
 
 def main():
   frogpilot_thread()

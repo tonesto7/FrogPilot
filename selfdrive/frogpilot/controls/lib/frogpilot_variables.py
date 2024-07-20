@@ -1,3 +1,5 @@
+import os
+
 from types import SimpleNamespace
 
 from cereal import car
@@ -5,6 +7,9 @@ from openpilot.common.conversions import Conversions as CV
 from openpilot.common.params import Params
 from openpilot.selfdrive.controls.lib.desire_helper import LANE_CHANGE_SPEED_MIN
 from openpilot.system.version import get_build_metadata
+
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH
+from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, NAVIGATION_MODELS, RADARLESS_MODELS, STAGING_MODELS
 
 CITY_SPEED_LIMIT = 25  # 55mph is typically the minimum speed for highways
 CRUISING_SPEED = 5     # Roughly the speed cars go when not touching the gas while in drive
@@ -174,6 +179,34 @@ class FrogPilotVariables:
     toggle.map_turn_speed_controller = openpilot_longitudinal and self.params.get_bool("MTSCEnabled")
     toggle.mtsc_curvature_check = toggle.map_turn_speed_controller and self.params.get_bool("MTSCCurvatureCheck")
     self.params_memory.put_float("MapTargetLatA", 2 * (self.params.get_int("MTSCAggressiveness") / 100.))
+
+    toggle.model_manager = self.params.get_bool("ModelManagement", block=openpilot_installed)
+    available_models = self.params.get("AvailableModels", block=toggle.model_manager, encoding='utf-8')
+    available_model_names = self.params.get("AvailableModelsNames", block=toggle.model_manager, encoding='utf-8')
+    current_model = self.params_memory.get("CurrentModel", encoding='utf-8')
+    current_model_name = self.params_memory.get("CurrentModelName", encoding='utf-8')
+    if toggle.model_manager and available_models is not None and current_model is None:
+      if toggle.model_manager:
+        toggle.model = self.params.get("Model", block=True, encoding='utf-8')
+      else:
+        toggle.model = DEFAULT_MODEL
+      if self.release and toggle.model in STAGING_MODELS:
+        toggle.model = DEFAULT_MODEL
+      self.params_memory.put("CurrentModel", toggle.model)
+      current_model_name = available_model_names.split(',')[available_models.split(',').index(toggle.model)]
+      self.params_memory.put("CurrentModelName", current_model_name)
+    else:
+      toggle.model = current_model
+      current_model_name = available_model_names.split(',')[available_models.split(',').index(toggle.model)]
+    model_exists = os.path.exists(os.path.join(MODELS_PATH, f"{toggle.model}.thneed"))
+    if model_exists:
+      toggle.part_model_param = process_model_name(current_model_name)
+    else:
+      toggle.model = DEFAULT_MODEL
+      toggle.part_model_param = ""
+    toggle.navigationless_model = toggle.model not in NAVIGATION_MODELS
+    toggle.radarless_model = toggle.model in RADARLESS_MODELS
+    toggle.secretgoodopenpilot_model = toggle.model == "secret-good-openpilot"
 
     quality_of_life_controls = self.params.get_bool("QOLControls")
     toggle.custom_cruise_increase = self.params.get_int("CustomCruise") if quality_of_life_controls and not pcm_cruise else 1
