@@ -23,7 +23,6 @@ from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import frogp
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME
 
 
-
 def manager_init() -> None:
   save_bootlog()
 

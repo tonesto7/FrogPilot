@@ -2,7 +2,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MovingAverageCalculator
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, PROBABILITY
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_SPEED_LIMIT, CRUISING_SPEED, PROBABILITY
 from openpilot.selfdrive.frogpilot.controls.lib.speed_limit_controller import SpeedLimitController
 
 MODEL_LENGTH = ModelConstants.IDX_N
@@ -74,7 +74,7 @@ class ConditionalExperimentalMode:
     curve_detected = (1 / road_curvature)**0.5 < v_ego
     curve_active = (1.1 / road_curvature)**0.5 < v_ego and self.curve_detected
 
-    self.curvature_mac.add_data(curve_detected or curve_active)
+    self.curvature_mac.add_data((curve_detected or curve_active) and v_ego > CRUISING_SPEED)
     self.curve_detected = self.curvature_mac.get_moving_average() >= PROBABILITY
 
   def slow_lead(self, slower_lead, tracking_lead, v_lead, frogpilot_toggles):

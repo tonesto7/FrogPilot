@@ -166,7 +166,6 @@ void MapSettingsButton::paintEvent(QPaintEvent *event) {
 // DistanceButton
 DistanceButton::DistanceButton(QWidget *parent) : QPushButton(parent) {
   setFixedSize(btn_size * 1.5, btn_size * 1.5);
-  transitionTimer.start();
 
   connect(this, &QPushButton::pressed, this, &DistanceButton::buttonPressed);
   connect(this, &QPushButton::released, this, &DistanceButton::buttonReleased);
@@ -182,13 +181,13 @@ void DistanceButton::buttonReleased() {
 
 void DistanceButton::updateState(const UIScene &scene) {
   bool stateChanged = (trafficModeActive != scene.traffic_mode_active) ||
-                      (personality != static_cast<int>(scene.personality) && !trafficModeActive);
+                      (personality != static_cast<int>(scene.personality) + 1 && !trafficModeActive);
 
   if (stateChanged) {
-    personality = static_cast<int>(scene.personality);
+    personality = static_cast<int>(scene.personality) + 1;
     trafficModeActive = scene.traffic_mode_active;
 
-    int profile = trafficModeActive ? 0 : personality + 1;
+    int profile = trafficModeActive ? 0 : personality;
     std::tie(profileImage, profileText) = (scene.use_kaofui_icons ? profileDataKaofui : profileData)[profile];
 
     transitionTimer.restart();
