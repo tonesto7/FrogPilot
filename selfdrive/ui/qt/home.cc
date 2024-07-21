@@ -254,6 +254,10 @@ void OffroadHome::refresh() {
     model = model.remove("(Default)").trimmed();
   }
 
+  if (uiState()->scene.model_randomizer) {
+    model = "Mystery Model 👻";
+  }
+
   date->setText(QLocale(uiState()->language.mid(5)).toString(QDateTime::currentDateTime(), "dddd, MMMM d"));
   version->setText(getBrand() + " v" + getVersion().left(14).trimmed() + " - " + model);
 

@@ -41,6 +41,7 @@ def manager_init() -> None:
   threading.Thread(target=frogpilot_boot_functions, args=(build_metadata, params, params_storage,)).start()
 
   default_params: list[tuple[str, str | bytes]] = [
+    ("AlwaysOnDM", "0"),
     ("CarParamsPersistent", ""),
     ("CompletedTrainingVersion", "0"),
     ("DisengageOnAccelerator", "0"),
@@ -362,7 +363,7 @@ def manager_init() -> None:
     else:
       params_storage.put(k, params.get(k))
 
-  params.put_bool("DoToggleReset", False)
+  params.put_bool_nonblocking("DoToggleReset", False)
 
   # Create folders needed for msgq
   try:

@@ -127,6 +127,7 @@ def main():
   sm = messaging.SubMaster(['liveLocationKalman', 'carState'], poll='liveLocationKalman')
 
   params_reader = Params()
+  params_memory = Params("/dev/shm/params")
   # wait for stats about the car to come in from controls
   cloudlog.info("paramsd is waiting for CarParams")
   with car.CarParams.from_bytes(params_reader.get("CarParams", block=True)) as msg:
@@ -141,7 +142,6 @@ def main():
   min_sr, max_sr = 0.5 * CP.steerRatio, 2.0 * CP.steerRatio
 
   params = params_reader.get("LiveParameters")
-  params_memory = Params("/dev/shm/params")
 
   # Check if car model matches
   if params is not None:

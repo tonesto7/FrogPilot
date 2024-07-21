@@ -14,7 +14,7 @@ from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogP
 from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_model, update_models
 from openpilot.selfdrive.frogpilot.controls.lib.theme_manager import ThemeManager
 
-WIFI = log.DeviceState.NetworkType.wifi
+OFFLINE = log.DeviceState.NetworkType.none
 
 def automatic_update_check(started, params):
   update_available = params.get_bool("UpdaterFetchAvailable")
@@ -29,12 +29,14 @@ def automatic_update_check(started, params):
     os.system("pkill -SIGUSR1 -f system.updated.updated")
 
 def time_checks(automatic_updates, deviceState, is_release, now, started, params, params_memory):
+  if deviceState.networkType == OFFLINE:
+    return
+
   if not is_url_pingable("https://github.com"):
     return
 
   screen_off = deviceState.screenBrightnessPercent == 0
-  wifi_connection = deviceState.networkType == WIFI
-  if automatic_updates and screen_off and wifi_connection:
+  if automatic_updates and screen_off:
     automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
@@ -61,8 +63,8 @@ def update_maps(now, params, params_memory):
     return
 
   if params.get("OSMDownloadProgress", encoding='utf-8') is None:
-    params_memory.put("OSMDownloadLocations", maps_selected)
-    params.put("LastMapsUpdate", todays_date)
+    params_memory.put_nonblocking("OSMDownloadLocations", maps_selected)
+    params.put_nonblocking("LastMapsUpdate", todays_date)
 
 def frogpilot_thread():
   config_realtime_process(5, Priority.CTRL_LOW)
@@ -98,8 +100,9 @@ def frogpilot_thread():
                                sm['frogpilotNavigation'], sm['modelV2'], sm['radarState'], frogpilot_toggles)
       frogpilot_planner.publish(sm, pm, frogpilot_toggles)
 
-    if params_memory.get("ModelToDownload", encoding='utf-8') is not None:
-      download_model(params_memory)
+    model_to_download = params_memory.get("ModelToDownload", encoding='utf-8')
+    if model_to_download is not None:
+      download_model(model_to_download, params_memory)
 
     if FrogPilotVariables.toggles_updated:
       update_toggles = True
@@ -107,8 +110,8 @@ def frogpilot_thread():
       FrogPilotVariables.update_frogpilot_params(started)
 
       if not frogpilot_toggles.model_manager:
-        params.put("Model", DEFAULT_MODEL)
-        params.put("ModelName", DEFAULT_MODEL_NAME)
+        params.put_nonblocking("Model", DEFAULT_MODEL)
+        params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
 
       if time_validated and not started:
         backup_toggles(params, params_storage)

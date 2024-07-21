@@ -50,7 +50,6 @@ void update_leads(UIState *s, const cereal::ModelDataV2::Reader &model_data) {
     const auto &lead = model_data.getLeadsV3()[i];
     if (s->scene.has_lead) {
       float d_rel = lead.getX()[0];
-      s->scene.lead_distance = d_rel;
       float y_rel = lead.getY()[0];
       float z = line.getZ()[get_path_length_idx(line, d_rel)];
       calib_frame_to_full_frame(s, d_rel, y_rel, z + 1.22, &s->scene.lead_vertices[i]);
@@ -274,7 +273,7 @@ static void update_state(UIState *s) {
     scene.lane_width_right = frogpilotPlan.getLaneWidthRight();
     scene.obstacle_distance = frogpilotPlan.getSafeObstacleDistance();
     scene.obstacle_distance_stock = frogpilotPlan.getSafeObstacleDistanceStock();
-    scene.road_curvature = frogpilotPlan.getRoadCurvature();
+    scene.red_light = frogpilotPlan.getRedLight();
     scene.speed_jerk = frogpilotPlan.getSpeedJerk();
     scene.speed_jerk_difference = frogpilotPlan.getSpeedJerkStock() - scene.speed_jerk;
     scene.speed_limit = frogpilotPlan.getSlcSpeedLimit();

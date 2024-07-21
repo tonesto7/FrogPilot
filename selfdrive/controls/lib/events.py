@@ -1007,20 +1007,20 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   # FrogPilot Events
   EventName.blockUser: {
-    ET.NO_ENTRY: NoEntryAlert("Please Don't Use the 'Development' Branch!"),
+    ET.NO_ENTRY: NoEntryAlert("Please don't use the 'Development' branch!"),
   },
 
   EventName.forcingStop: {
     ET.WARNING: Alert(
-      "Forcing the Car to Stop",
-      "Press the Gas Pedal or Resume Button to Override",
+      "Forcing the car to stop",
+      "Press the gas pedal or 'Resume' button to override",
       AlertStatus.frogpilot, AlertSize.mid,
       Priority.MID, VisualAlert.none, AudibleAlert.prompt, 1.),
   },
 
   EventName.goatSteerSaturated: {
     ET.WARNING: Alert(
-      "Turn Exceeds Steering Limit",
+      "Turn exceeds steering limit",
       "JESUS TAKE THE WHEEL!!",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.goat, 2.),
@@ -1028,7 +1028,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.greenLight: {
     ET.PERMANENT: Alert(
-      "Light Turned Green",
+      "Light turned green",
       "",
       AlertStatus.frogpilot, AlertSize.small,
       Priority.MID, VisualAlert.none, AudibleAlert.prompt, 3.),
@@ -1040,7 +1040,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.laneChangeBlockedLoud: {
     ET.WARNING: Alert(
-      "Car Detected in Blindspot",
+      "Car detected in blindspot",
       "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.warningSoft, .1),
@@ -1048,7 +1048,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.leadDeparting: {
     ET.PERMANENT: Alert(
-      "Lead Departed",
+      "Lead departed",
       "",
       AlertStatus.frogpilot, AlertSize.small,
       Priority.MID, VisualAlert.none, AudibleAlert.prompt, 3.),
@@ -1060,8 +1060,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.openpilotCrashed: {
     ET.PERMANENT: Alert(
-      "openpilot Crashed",
-      "Please Post the Error Log in the FrogPilot Discord!",
+      "openpilot crashed",
+      "Please post the 'Error Log' in the FrogPilot Discord!",
       AlertStatus.normal, AlertSize.mid,
       Priority.HIGH, VisualAlert.none, AudibleAlert.none, 10.),
   },
@@ -1076,7 +1076,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.speedLimitChanged: {
     ET.PERMANENT: Alert(
-      "Speed Limit Changed",
+      "Speed limit changed",
       "",
       AlertStatus.frogpilot, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 3.),
@@ -1088,7 +1088,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.trafficModeActive: {
     ET.PERMANENT: Alert(
-      "Traffic Mode Enabled",
+      "Traffic Mode enabled",
       "",
       AlertStatus.frogpilot, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 3.),
@@ -1104,7 +1104,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.turningLeft: {
     ET.WARNING: Alert(
-      "Turning Left",
+      "Turning left",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .1, alert_rate=0.75),
@@ -1112,7 +1112,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.turningRight: {
     ET.WARNING: Alert(
-      "Turning Right",
+      "Turning right",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .1, alert_rate=0.75),
@@ -1121,7 +1121,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # Random Events
   EventName.accel30: {
     ET.WARNING: Alert(
-      "UwU U Went a Bit Fast There!",
+      "UwU u went a bit fast there!",
       "(⁄ ⁄•⁄ω⁄•⁄ ⁄)",
       AlertStatus.frogpilot, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.uwu, 4.),
@@ -1129,8 +1129,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.accel35: {
     ET.WARNING: Alert(
-      "I Ain't Giving You No Tree-Fiddy",
-      "You Damn Loch Ness Monsta!",
+      "I ain't giving you no tree-fiddy",
+      "You damn Loch Ness Monsta!",
       AlertStatus.frogpilot, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.nessie, 4.),
   },
@@ -1145,7 +1145,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.dejaVuCurve: {
     ET.WARNING: Alert(
-      "♬♪ Deja Vu! ᕕ(⌐■_■)ᕗ ♪♬",
+      "♬♪ Deja vu! ᕕ(⌐■_■)ᕗ ♪♬",
       "🏎️",
       AlertStatus.frogpilot, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.dejaVu, 4.),
@@ -1161,16 +1161,16 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.hal9000: {
     ET.WARNING: Alert(
-      "I'm Sorry Dave",
-      "I'm Afraid I Can't Do That...",
+      "I'm sorry Dave",
+      "I'm afraid I can't do that...",
       AlertStatus.normal, AlertSize.mid,
       Priority.HIGH, VisualAlert.none, AudibleAlert.hal9000, 4.),
   },
 
-  EventName.openpilotCrashedRandomEvents: {
+  EventName.openpilotCrashedRandomEvent: {
     ET.PERMANENT: Alert(
-      "openpilot Crashed 💩",
-      "Please Post the Error Log in the FrogPilot Discord!",
+      "openpilot crashed 💩",
+      "Please post the 'Error Log' in the FrogPilot Discord!",
       AlertStatus.normal, AlertSize.mid,
       Priority.HIGHEST, VisualAlert.none, AudibleAlert.fart, 10.),
   },
@@ -1185,7 +1185,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.yourFrogTriedToKillMe: {
     ET.PERMANENT: Alert(
-      "Your Frog Tried to Kill Me...",
+      "Your Frog tried to kill me...",
       "👺",
       AlertStatus.frogpilot, AlertSize.mid,
       Priority.MID, VisualAlert.none, AudibleAlert.angry, 5.),

@@ -29,7 +29,6 @@ _A_TOTAL_MAX_BP = [20., 40.]
 # Kalman filter states enum
 LEAD_KALMAN_SPEED, LEAD_KALMAN_ACCEL = 0, 1
 
-
 def get_max_accel(v_ego):
   return interp(v_ego, A_CRUISE_MAX_BP, A_CRUISE_MAX_VALS)
 

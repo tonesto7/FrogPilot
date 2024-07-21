@@ -359,10 +359,11 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s, c
 
     for (int i = 0; i < max_len; ++i) {
       // Some points are out of frame
-      if (scene.track_vertices[i].y() < 0 || scene.track_vertices[i].y() > height()) continue;
+      int track_idx = (scene.track_vertices.length() / 2) - i;  // flip idx to start from top
+      if (scene.track_vertices[track_idx].y() < 0 || scene.track_vertices[track_idx].y() > height()) continue;
 
       // Flip so 0 is bottom of frame
-      float lin_grad_point = (height() - scene.track_vertices[i].y()) / height();
+      float lin_grad_point = (height() - scene.track_vertices[track_idx].y()) / height();
 
       // If acceleration is between -0.25 and 0.25, resort to the theme color
       if (std::abs(acceleration[i]) < 0.25 && (currentHolidayTheme != 0)) {
@@ -410,30 +411,24 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s, c
   painter.setBrush(bg);
   painter.drawPolygon(scene.track_vertices);
 
-  if (scene.show_stopping_point) {
-    bool curve_detected = sqrt(1.0 / scene.road_curvature) < v_ego;
-    bool following_lead = scene.has_lead && scene.lead_distance < scene.model_length + 33;
-    bool model_stopping = scene.model_length < v_ego * (10 - 3);
+  if (scene.show_stopping_point && scene.red_light) {
+    QPointF last_point = scene.track_vertices.last();
 
-    if (model_stopping && !curve_detected && !following_lead) {
-      QPointF last_point = scene.track_vertices.last();
+    QPointF adjusted_point = last_point - QPointF(stopSignImg.width() / 2, stopSignImg.height());
+    painter.drawPixmap(adjusted_point, stopSignImg);
 
-      QPointF adjusted_point = last_point - QPointF(stopSignImg.width() / 2, stopSignImg.height());
-      painter.drawPixmap(adjusted_point, stopSignImg);
+    if (scene.show_stopping_point_metrics) {
+      QString text = QString::number(scene.model_length * distanceConversion) + leadDistanceUnit;
+      QFont font = InterFont(35, QFont::DemiBold);
+      QFontMetrics fm(font);
+      int text_width = fm.horizontalAdvance(text);
+      QPointF text_position = last_point - QPointF(text_width / 2, stopSignImg.height() + 35);
 
-      if (scene.show_stopping_point_metrics) {
-        QString text = QString::number(scene.model_length * distanceConversion) + leadDistanceUnit;
-        QFont font = InterFont(35, QFont::DemiBold);
-        QFontMetrics fm(font);
-        int text_width = fm.horizontalAdvance(text);
-        QPointF text_position = last_point - QPointF(text_width / 2, stopSignImg.height() + 35);
-
-        painter.save();
-        painter.setFont(font);
-        painter.setPen(Qt::white);
-        painter.drawText(text_position, text);
-        painter.restore();
-      }
+      painter.save();
+      painter.setFont(font);
+      painter.setPen(Qt::white);
+      painter.drawText(text_position, text);
+      painter.restore();
     }
   }
 
@@ -1325,8 +1320,8 @@ void AnnotatedCameraWidget::drawStatusBar(QPainter &p) {
   static const std::map<int, QString> suffixMap = {
     {1, tr(". Long press the \"distance\" button to revert")},
     {2, tr(". Long press the \"distance\" button to revert")},
-    {3, tr(". Double press the \"LKAS\" button to revert")},
-    {4, tr(". Double press the \"LKAS\" button to revert")},
+    {3, tr(". Click the \"LKAS\" button to revert")},
+    {4, tr(". Click the \"LKAS\" button to revert")},
     {5, tr(". Double tap the screen to revert")},
     {6, tr(". Double tap the screen to revert")},
   };

@@ -108,8 +108,7 @@ def handle_verification_failure(model, model_path, model_url, params_memory):
   else:
     print(f"Model {model} redownload verification failed from Gitlab. The file might be corrupted.")
 
-def download_model(params_memory):
-  model = params_memory.get("ModelToDownload", encoding='utf-8')
+def download_model(model, params_memory):
   model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
 
   if os.path.exists(model_path):
@@ -157,14 +156,14 @@ def update_model_lists(model_info, release, params):
       available_models.append(model_name)
       available_model_names.append(model[1])
 
-  params.put("AvailableModels", ','.join(available_models))
-  params.put("AvailableModelsNames", ','.join(available_model_names))
+  params.put_nonblocking("AvailableModels", ','.join(available_models))
+  params.put_nonblocking("AvailableModelsNames", ','.join(available_model_names))
   print("Models list updated successfully.")
 
 def handle_model_deletion(params):
   model_name = params.get("ModelName", encoding='utf-8')
   if "(Default)" in model_name and model_name != DEFAULT_MODEL_NAME:
-    params.put("ModelName", model_name.replace(" (Default)", ""))
+    params.put_nonblocking("ModelName", model_name.replace(" (Default)", ""))
 
   available_models = params.get("AvailableModels", encoding='utf-8').split(',')
   for model_file in os.listdir(MODELS_PATH):
@@ -180,8 +179,8 @@ def validate_current_model(params, params_memory):
     if current_model in available_models:
       params_memory.put("ModelToDownload", current_model)
     else:
-      params.put("Model", DEFAULT_MODEL)
-      params.put("ModelName", DEFAULT_MODEL_NAME)
+      params.put_nonblocking("Model", DEFAULT_MODEL)
+      params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
 
 def copy_default_model():
   default_model_path = os.path.join(MODELS_PATH, f"{DEFAULT_MODEL}.thneed")
@@ -227,7 +226,7 @@ def update_models(release, params, params_memory, boot_run=True, started=False):
 
     update_model_lists(model_info, release, params)
     if not started and not boot_run:
-      params.put_bool("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
+      params.put_bool_nonblocking("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
     if not boot_run:
       return
 

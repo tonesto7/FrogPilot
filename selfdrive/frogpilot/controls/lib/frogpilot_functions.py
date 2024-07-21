@@ -24,7 +24,7 @@ def is_url_pingable(url, timeout=5):
   try:
     urllib.request.urlopen(url, timeout=timeout)
     return True
-  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected):
+  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected, http.client.IncompleteRead):
     return False
 
 def update_frogpilot_toggles():
@@ -116,8 +116,8 @@ def convert_params(params, params_storage):
   except UnknownKeyName:
     pass
 
-  convert_param("ModelSelector", lambda: params.put("ModelManagement", "True"))
-  convert_param("DragonPilotTune", lambda: params.put("FrogsGoMooTune", "True"))
+  convert_param("ModelSelector", lambda: params.put_nonblocking("ModelManagement", "True"))
+  convert_param("DragonPilotTune", lambda: params.put_nonblocking("FrogsGoMooTune", "True"))
 
   print("Params successfully converted!")
   params_storage.put_int_nonblocking("ParamConversionVersion", version)

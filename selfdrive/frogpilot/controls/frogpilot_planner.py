@@ -89,7 +89,7 @@ class FrogPilotPlanner:
     lead_distance = self.lead_one.dRel - distance_offset
     stopping_distance = STOP_DISTANCE + distance_offset
 
-    if (frogpilot_toggles.conditional_experimental_mode or frogpilot_toggles.force_stops) and controlsState.enabled:
+    if (frogpilot_toggles.conditional_experimental_mode or frogpilot_toggles.force_stops or frogpilot_toggles.show_stopping_point) and controlsState.enabled:
       self.cem.update(carState, self.forcing_stop, frogpilotNavigation, modelData, self.model_length, self.model_stopped, self.road_curvature, self.slower_lead, self.tracking_lead, v_ego, v_lead, frogpilot_toggles)
 
     check_lane_width = frogpilot_toggles.adjacent_lanes or frogpilot_toggles.blind_spot_path or frogpilot_toggles.lane_detection
@@ -231,7 +231,7 @@ class FrogPilotPlanner:
       braking_offset = clip((v_ego - v_lead) + far_lead_offset - COMFORT_BRAKE, 1, distance_factor)
       if frogpilot_toggles.smoother_braking:
         self.acceleration_jerk = self.base_acceleration_jerk * min(braking_offset, COMFORT_BRAKE / 2)
-        self.danger_jerk = self.base_danger_jerk * min(braking_offset, COMFORT_BRAKE / 2)
+        self.danger_jerk = self.base_danger_jerk / min(braking_offset, COMFORT_BRAKE / 2)
         self.speed_jerk = self.base_speed_jerk * min(braking_offset, COMFORT_BRAKE * 2)
         self.t_follow /= braking_offset
       self.slower_lead = braking_offset - far_lead_offset > 1
@@ -340,6 +340,7 @@ class FrogPilotPlanner:
     frogpilotPlan.forcingStop = self.forcing_stop
 
     frogpilotPlan.greenLight = not self.model_stopped
+    frogpilotPlan.redLight = self.cem.stop_light_detected
 
     frogpilotPlan.laneWidthLeft = self.lane_width_left
     frogpilotPlan.laneWidthRight = self.lane_width_right
@@ -348,8 +349,6 @@ class FrogPilotPlanner:
 
     frogpilotPlan.maxAcceleration = float(self.max_accel)
     frogpilotPlan.minAcceleration = float(self.min_accel)
-
-    frogpilotPlan.roadCurvature = self.road_curvature
 
     frogpilotPlan.slcOverridden = bool(self.override_slc)
     frogpilotPlan.slcOverriddenSpeed = float(self.overridden_speed)

@@ -162,8 +162,8 @@ void ModelReview::onRatingButtonClicked() {
 
   finalRating = (currentRating * (totalDrives - 1) + newRating) / totalDrives;
 
-  params.putInt(drivesParamStd, totalDrives);
-  params.putInt(ratingParamStd, finalRating);
+  params.putIntNonBlocking(drivesParamStd, totalDrives);
+  params.putIntNonBlocking(ratingParamStd, finalRating);
 
   modelRated = true;
 
@@ -171,11 +171,11 @@ void ModelReview::onRatingButtonClicked() {
 }
 
 void ModelReview::onBlacklistButtonClicked() {
-  params.putInt(QString("%1Score").arg(currentModelFiltered).toStdString(), 0);
+  params.putIntNonBlocking(QString("%1Score").arg(currentModelFiltered).toStdString(), 0);
 
   if (!blacklistedModels.contains(currentModel)) {
     blacklistedModels.append(currentModel);
-    params.put("BlacklistedModels", blacklistedModels.join(",").toStdString());
+    params.putNonBlocking("BlacklistedModels", blacklistedModels.join(",").toStdString());
   }
 
   blacklistMessageLabel->setText("Model successfully blacklisted!");

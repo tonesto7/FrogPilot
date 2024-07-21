@@ -56,7 +56,7 @@ struct FrogPilotPlan @0x80ae746ee2596b11 {
   leadDeparting @10 :Bool;
   maxAcceleration @11 :Float32;
   minAcceleration @12 :Float32;
-  roadCurvature @13 :Float32;
+  redLight @13 :Bool;
   safeObstacleDistance @14 :Int16;
   safeObstacleDistanceStock @15 :Int16;
   slcOverridden @16 :Bool;

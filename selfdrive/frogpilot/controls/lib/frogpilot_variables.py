@@ -121,6 +121,7 @@ class FrogPilotVariables:
     custom_paths = custom_ui and self.params.get_bool("CustomPaths")
     toggle.adjacent_lanes = custom_paths and self.params.get_bool("AdjacentPath")
     toggle.blind_spot_path = custom_paths and self.params.get_bool("BlindSpotPath")
+    toggle.show_stopping_point = custom_ui and self.params.get_bool("ShowStoppingPoint")
 
     toggle.device_management = self.params.get_bool("DeviceManagement")
     device_shutdown_setting = self.params.get_int("DeviceShutdown") if toggle.device_management else 33
@@ -209,9 +210,8 @@ class FrogPilotVariables:
         toggle.model = DEFAULT_MODEL
       if self.release and toggle.model in STAGING_MODELS:
         toggle.model = DEFAULT_MODEL
-      model_index = available_models.split(',').index(toggle.model)
-      current_model_name = available_model_names.split(',')[model_index]
       self.params_memory.put("CurrentModel", toggle.model)
+      current_model_name = available_model_names.split(',')[available_models.split(',').index(toggle.model)]
       self.params_memory.put("CurrentModelName", current_model_name)
     else:
       toggle.model = current_model

@@ -38,7 +38,6 @@ PARK = car.CarState.GearShifter.park
 COMPENSATORY_CALCULATION_THRESHOLD_V = [-0.3, -0.25, 0.]  # m/s^2
 COMPENSATORY_CALCULATION_THRESHOLD_BP = [0., 11., 23.]  # m/s
 
-
 def compute_gb_toyota(accel, speed):
   creep_brake = 0.0
   creep_speed = 2.3
@@ -47,7 +46,6 @@ def compute_gb_toyota(accel, speed):
     creep_brake = (creep_speed - speed) / creep_speed * creep_brake_value
   gb = accel - creep_brake
   return gb
-
 
 class CarController(CarControllerBase):
   def __init__(self, dbc_name, CP, VM):
@@ -73,10 +71,10 @@ class CarController(CarControllerBase):
     self.cydia_tune = params.get_bool("CydiaTune")
     self.frogs_go_moo_tune = params.get_bool("FrogsGoMooTune")
 
-    self.pcm_accel_comp = 0
-
     self.doors_locked = False
     self.doors_unlocked = True
+
+    self.pcm_accel_comp = 0
 
   def update(self, CC, CS, now_nanos, frogpilot_toggles):
     actuators = CC.actuators

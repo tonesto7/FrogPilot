@@ -168,6 +168,7 @@ typedef struct UIScene {
   bool parked;
   bool pedals_on_ui;
   bool random_events;
+  bool red_light;
   bool reverse;
   bool reverse_cruise;
   bool reverse_cruise_ui;
@@ -223,7 +224,6 @@ typedef struct UIScene {
   float lead_detection_threshold;
   float path_edge_width;
   float path_width;
-  float road_curvature;
   float road_edge_width;
   float speed_jerk;
   float speed_jerk_difference;
@@ -246,7 +246,6 @@ typedef struct UIScene {
   int custom_signals;
   int desired_follow;
   int driver_camera_timer;
-  int lead_distance;
   int map_style;
   int model_length;
   int obstacle_distance;
