@@ -200,9 +200,9 @@ class CarState(CarStateBase):
     if self.CP.carFingerprint not in UNSUPPORTED_DSU_CAR:
       self.pcm_follow_distance = cp.vl["PCM_CRUISE_2"]["PCM_FOLLOW_DISTANCE"]
 
+    self.prev_distance_button = self.distance_button
     if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR) or (self.CP.flags & ToyotaFlags.SMART_DSU and not self.CP.flags & ToyotaFlags.RADAR_CAN_FILTER):
       # distance button is wired to the ACC module (camera or radar)
-      self.prev_distance_button = self.distance_button
       if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR):
         self.distance_button = cp_acc.vl["ACC_CONTROL"]["DISTANCE"]
       else:
@@ -221,8 +221,8 @@ class CarState(CarStateBase):
     fp_ret.ecoGear = cp.vl["GEAR_PACKET"]['ECON_ON'] == 1
     fp_ret.sportGear = cp.vl["GEAR_PACKET"]['SPORT_ON_2' if self.CP.flags & ToyotaFlags.NO_DSU else 'SPORT_ON'] == 1
 
+    self.lkas_previously_enabled = self.lkas_enabled
     if self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
-      self.lkas_previously_enabled = self.lkas_enabled
       self.lkas_enabled = self.lkas_hud.get("LKAS_STATUS") or self.lkas_hud.get("SET_ME_X02")
 
     self.pcm_accel_net = cp.vl["PCM_CRUISE"]["ACCEL_NET"]

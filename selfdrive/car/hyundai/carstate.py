@@ -194,8 +194,8 @@ class CarState(CarStateBase):
     self.prev_distance_button = self.distance_button
     self.distance_button = self.cruise_buttons[-1] == Buttons.GAP_DIST
 
+    self.lkas_previously_enabled = self.lkas_enabled
     if self.CP.flags & HyundaiFlags.CAN_LFA_BTN:
-      self.lkas_previously_enabled = self.lkas_enabled
       self.lkas_enabled = cp.vl["BCM_PO_11"]["LFA_Pressed"]
 
     return ret, fp_ret
