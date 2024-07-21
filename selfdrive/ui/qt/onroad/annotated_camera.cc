@@ -411,7 +411,7 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s, c
   painter.setBrush(bg);
   painter.drawPolygon(scene.track_vertices);
 
-  if (scene.show_stopping_point && scene.red_light) {
+  if (scene.show_stopping_point && scene.red_light && v_ego > 1) {
     QPointF last_point = scene.track_vertices.last();
 
     QPointF adjusted_point = last_point - QPointF(stopSignImg.width() / 2, stopSignImg.height());

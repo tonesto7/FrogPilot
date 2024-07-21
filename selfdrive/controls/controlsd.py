@@ -202,7 +202,6 @@ class Controls:
     self.onroad_distance_pressed = False
     self.openpilot_crashed_triggered = False
     self.previous_traffic_mode = False
-    self.previously_enabled = False
     self.random_event_triggered = False
     self.resume_pressed = False
     self.resume_previously_pressed = False
@@ -452,7 +451,7 @@ class Controls:
         self.events.add(EventName.modeldLagging)
 
     # Update FrogPilot events
-    self.update_frogpilot_events(CS, self.sm['frogpilotPlan'])
+    self.update_frogpilot_events(CS, self.sm['frogpilotCarState'], self.sm['frogpilotPlan'])
 
   def data_sample(self):
     """Receive data from sockets"""
@@ -740,7 +739,7 @@ class Controls:
 
     self.display_timer -= 1
 
-    FPCC = self.update_frogpilot_variables(CS, self.sm['frogpilotPlan'])
+    FPCC = self.update_frogpilot_variables(CS, self.sm['frogpilotCarState'], self.sm['frogpilotPlan'])
 
     return CC, lac_log, FPCC
 
@@ -949,11 +948,11 @@ class Controls:
       e.set()
       t.join()
 
-  def update_frogpilot_events(self, CS, frogpilotPlan):
+  def update_frogpilot_events(self, CS, frogpilotCarState, frogpilotPlan):
     if frogpilotPlan.forcingStop:
       self.events.add(EventName.forcingStop)
 
-    if self.frogpilot_toggles.green_light_alert and CS.standstill:
+    if self.frogpilot_toggles.green_light_alert and not self.sm['longitudinalPlan'].hasLead and CS.standstill:
       if frogpilotPlan.greenLight and self.stopped_for_light:
         self.events.add(EventName.greenLight)
       self.stopped_for_light = frogpilotPlan.redLight
@@ -964,7 +963,7 @@ class Controls:
       self.events.add(EventName.holidayActive)
       self.holiday_theme_alerted = True
 
-    if frogpilotPlan.leadDeparting and self.previously_enabled and CS.standstill:
+    if frogpilotPlan.leadDeparting:
       self.events.add(EventName.leadDeparting)
 
     if not self.openpilot_crashed_triggered and os.path.isfile(os.path.join(sentry.CRASHES_DIR, 'error.txt')):
@@ -1024,26 +1023,26 @@ class Controls:
     if self.sm.frame * DT_CTRL == 5.5 and self.CP.lateralTuning.which() == "torque" and self.CI.use_nnff:
       self.events.add(EventName.torqueNNLoad)
 
-    if self.sm['frogpilotCarState'].trafficModeActive != self.previous_traffic_mode:
+    if frogpilotCarState.trafficModeActive != self.previous_traffic_mode:
       if self.previous_traffic_mode:
         self.events.add(EventName.trafficModeInactive)
       else:
         self.events.add(EventName.trafficModeActive)
-      self.previous_traffic_mode = self.sm['frogpilotCarState'].trafficModeActive
+      self.previous_traffic_mode = frogpilotCarState.trafficModeActive
 
     if self.sm['modelV2'].meta.turnDirection == Desire.turnLeft:
       self.events.add(EventName.turningLeft)
     elif self.sm['modelV2'].meta.turnDirection == Desire.turnRight:
       self.events.add(EventName.turningRight)
 
-  def update_frogpilot_variables(self, CS, frogpilotPlan):
+  def update_frogpilot_variables(self, CS, frogpilotCarState, frogpilotPlan):
     driving_gear = CS.gearShifter not in (GearShifter.neutral, GearShifter.park, GearShifter.reverse, GearShifter.unknown)
 
     self.always_on_lateral_active |= self.frogpilot_toggles.always_on_lateral_main or CS.cruiseState.enabled
     self.always_on_lateral_active &= self.frogpilot_toggles.always_on_lateral and CS.cruiseState.available
     self.always_on_lateral_active &= driving_gear
     self.always_on_lateral_active &= self.speed_check
-    self.always_on_lateral_active &= not (self.frogpilot_toggles.always_on_lateral_lkas and self.sm['frogpilotCarState'].alwaysOnLateralDisabled)
+    self.always_on_lateral_active &= not (self.frogpilot_toggles.always_on_lateral_lkas and frogpilotCarState.alwaysOnLateralDisabled)
     self.always_on_lateral_active &= not (CS.brakePressed and CS.vEgo < self.frogpilot_toggles.always_on_lateral_pause_speed) or CS.standstill
 
     self.drive_distance += CS.vEgo * DT_CTRL
@@ -1075,9 +1074,6 @@ class Controls:
         else:
           self.experimental_mode = not self.experimental_mode
           self.params.put_bool_nonblocking("ExperimentalMode", self.experimental_mode)
-
-    self.previously_enabled |= (self.enabled or self.always_on_lateral_active) and CS.vEgo > CRUISING_SPEED
-    self.previously_enabled &= driving_gear
 
     if self.random_event_triggered:
       self.random_event_timer += DT_CTRL

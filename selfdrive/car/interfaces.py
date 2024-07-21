@@ -578,6 +578,7 @@ class CarStateBase(ABC):
     # FrogPilot variables
     self.cruise_decreased = False
     self.cruise_increased = False
+    self.distance_button = False
     self.lkas_enabled = False
 
   def update_speed_kf(self, v_ego_raw):
