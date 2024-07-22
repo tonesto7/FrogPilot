@@ -24,7 +24,7 @@ def is_url_pingable(url, timeout=5):
   try:
     urllib.request.urlopen(url, timeout=timeout)
     return True
-  except (urllib.error.URLError, socket.timeout, http.client.RemoteDisconnected, http.client.IncompleteRead):
+  except (http.client.IncompleteRead, http.client.RemoteDisconnected, socket.gaierror, socket.timeout, urllib.error.HTTPError, urllib.error.URLError):
     return False
 
 def update_frogpilot_toggles():

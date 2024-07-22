@@ -87,4 +87,5 @@ private:
   float steerRatioStock;
 
   QStringList availableModelNames;
+  QStringList availableModels;
 };

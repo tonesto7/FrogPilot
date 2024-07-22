@@ -24,19 +24,17 @@ STAGING_MODELS = {"radical-turtle", "secret-good-openpilot"}
 def get_repository_url():
   if is_url_pingable("https://github.com"):
     return GITHUB_REPOSITORY_URL
-
   if is_url_pingable("https://gitlab.com"):
     return GITLAB_REPOSITORY_URL
-
   return None
 
 def get_remote_file_size(url):
   try:
-    response = requests.head(url, timeout=10)
+    response = requests.head(url, timeout=5)
     response.raise_for_status()
     return int(response.headers.get('Content-Length', 0))
-  except requests.RequestException as request_error:
-    print(f"Error fetching file size: {request_error}")
+  except requests.RequestException as e:
+    print(f"Error fetching file size: {e}")
     return None
 
 def delete_file(file):
@@ -49,6 +47,7 @@ def delete_file(file):
 def handle_download_error(destination, error_message, error, params_memory):
   print(f"Error occurred: {error}")
   params_memory.put("ModelDownloadProgress", error_message)
+  params_memory.remove("ModelToDownload")
   delete_file(destination)
 
 def verify_download(file_path, model_url):
@@ -59,12 +58,11 @@ def verify_download(file_path, model_url):
   if remote_file_size is None:
     return False
 
-  local_file_size = os.path.getsize(file_path)
-  return remote_file_size == local_file_size
+  return remote_file_size == os.path.getsize(file_path)
 
 def download_file(destination, url, params_memory):
   try:
-    with requests.get(url, stream=True, timeout=10) as r:
+    with requests.get(url, stream=True, timeout=5) as r:
       r.raise_for_status()
       total_size = get_remote_file_size(url)
       downloaded_size = 0
@@ -92,67 +90,55 @@ def download_file(destination, url, params_memory):
     handle_download_error(destination, "Failed: Unexpected error.", e, params_memory)
 
 def handle_existing_model(model, params_memory):
-  error_message = f"Model {model} already exists, skipping download..."
-  print(error_message)
+  print(f"Model {model} already exists, skipping download...")
   params_memory.put("ModelDownloadProgress", "Model already exists...")
   params_memory.remove("ModelToDownload")
 
 def handle_verification_failure(model, model_path, model_url, params_memory):
-  handle_download_error(model_path, "Issue connecting to Github, trying Gitlab", f"Model {model} verification failed. The file might be corrupted. Redownloading from Gitlab...", params_memory)
-  second_repo_url = GITLAB_REPOSITORY_URL
-  second_model_url = f"{second_repo_url}Models/{model}.thneed"
+  handle_download_error(model_path, "Issue connecting to Github, trying Gitlab", f"Model {model} verification failed. Redownloading from Gitlab...", params_memory)
+  second_model_url = f"{GITLAB_REPOSITORY_URL}Models/{model}.thneed"
   download_file(model_path, second_model_url, params_memory)
 
   if verify_download(model_path, second_model_url):
     print(f"Model {model} redownloaded and verified successfully from Gitlab.")
   else:
-    print(f"Model {model} redownload verification failed from Gitlab. The file might be corrupted.")
+    print(f"Model {model} redownload verification failed from Gitlab.")
 
-def download_model(model, params_memory):
-  model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
-
+def download_model(model_to_download, params_memory):
+  model_path = os.path.join(MODELS_PATH, f"{model_to_download}.thneed")
   if os.path.exists(model_path):
-    handle_existing_model(model, params_memory)
+    handle_existing_model(model_to_download, params_memory)
     return
 
   repo_url = get_repository_url()
-  if repo_url:
-    model_url = f"{repo_url}Models/{model}.thneed"
+  if repo_url is not None:
+    model_url = f"{repo_url}Models/{model_to_download}.thneed"
     download_file(model_path, model_url, params_memory)
 
     if verify_download(model_path, model_url):
-      success_message = f"Model {model} downloaded and verified successfully!"
-      print(success_message)
+      print(f"Model {model_to_download} downloaded and verified successfully!")
       params_memory.put("ModelDownloadProgress", "Downloaded!")
       params_memory.remove("ModelToDownload")
     else:
-      handle_verification_failure(model, model_path, model_url, params_memory)
+      handle_verification_failure(model_to_download, model_path, model_url, params_memory)
   else:
-    error_message = "Github and Gitlab are offline..."
-    print(error_message)
-    params_memory.put("ModelDownloadProgress", error_message)
-    params_memory.remove("ModelToDownload")
+    handle_download_error(model_path, "Github and Gitlab are offline...", "Github and Gitlab are offline...", params_memory)
 
-def fetch_model_info(url):
+def fetch_models(url):
   try:
     with urllib.request.urlopen(url) as response:
-      model_info = [line.decode('utf-8').strip().split(' - ') for line in response.readlines()]
-    return model_info
+      return [line.decode('utf-8').strip().split(' - ') for line in response.readlines()]
   except Exception as e:
     print(f"Failed to update models list. Error: {e}")
     return None
 
-def update_model_lists(model_info, release, params):
+def update_model_params(model_info, release, params):
   available_models = []
   available_model_names = []
 
   for model in model_info:
     model_name = model[0]
-    if release:
-      if model_name not in STAGING_MODELS:
-        available_models.append(model_name)
-        available_model_names.append(model[1])
-    else:
+    if not (release and model_name in STAGING_MODELS):
       available_models.append(model_name)
       available_model_names.append(model[1])
 
@@ -160,27 +146,20 @@ def update_model_lists(model_info, release, params):
   params.put_nonblocking("AvailableModelsNames", ','.join(available_model_names))
   print("Models list updated successfully.")
 
-def handle_model_deletion(params):
-  model_name = params.get("ModelName", encoding='utf-8')
-  if "(Default)" in model_name and model_name != DEFAULT_MODEL_NAME:
-    params.put_nonblocking("ModelName", model_name.replace(" (Default)", ""))
+def validate_models(params):
+  current_model = params.get("Model", encoding='utf-8')
+  current_model_name = params.get("ModelName", encoding='utf-8')
+  if "(Default)" in current_model_name and current_model_name != DEFAULT_MODEL_NAME:
+    params.put_nonblocking("ModelName", current_model_name.replace(" (Default)", ""))
 
   available_models = params.get("AvailableModels", encoding='utf-8').split(',')
   for model_file in os.listdir(MODELS_PATH):
     if model_file.endswith('.thneed') and model_file[:-7] not in available_models:
+      if model_file == current_model:
+        params.put_nonblocking("Model", DEFAULT_MODEL)
+        params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
       delete_file(os.path.join(MODELS_PATH, model_file))
       print(f"Deleted model file: {model_file}")
-
-def validate_current_model(params, params_memory):
-  current_model = params.get("Model", encoding='utf-8')
-  current_model_path = os.path.join(MODELS_PATH, f"{current_model}.thneed")
-  if not os.path.exists(current_model_path):
-    available_models = params.get("AvailableModels", encoding='utf-8').split(',')
-    if current_model in available_models:
-      params_memory.put("ModelToDownload", current_model)
-    else:
-      params.put_nonblocking("Model", DEFAULT_MODEL)
-      params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
 
 def copy_default_model():
   default_model_path = os.path.join(MODELS_PATH, f"{DEFAULT_MODEL}.thneed")
@@ -191,17 +170,15 @@ def copy_default_model():
       print(f"Copied default model from {source_path} to {default_model_path}")
     else:
       print(f"Source default model not found at {source_path}. Exiting...")
-      return False
-  return True
 
-def are_all_models_downloaded(params, params_memory):
+def are_all_models_downloaded(repo_url, params, params_memory):
   automatically_update_models = params.get_bool("AutomaticallyUpdateModels")
   available_models = params.get("AvailableModels", encoding='utf-8').split(',')
   all_models_downloaded = True
 
   for model in available_models:
     model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
-    model_url = f"{get_repository_url()}Models/{model}.thneed"
+    model_url = f"{repo_url}Models/{model}.thneed"
 
     if not os.path.exists(model_path) or not verify_download(model_path, model_url):
       if automatically_update_models:
@@ -210,29 +187,26 @@ def are_all_models_downloaded(params, params_memory):
           time.sleep(1)
         params_memory.put("ModelToDownload", model)
       all_models_downloaded = False
-
   return all_models_downloaded
 
-def update_models(release, params, params_memory, boot_run=True, started=False):
+def update_models(downloading_model, release, params, params_memory, boot_run=True):
   try:
+    if downloading_model:
+      return
+
+    if boot_run:
+      copy_default_model()
+      validate_models(params)
+
     repo_url = get_repository_url()
     if repo_url is None:
       return
 
-    url = f"{repo_url}Versions/model_names_{VERSION}.txt"
-    model_info = fetch_model_info(url)
+    model_info = fetch_models(f"{repo_url}Versions/model_names_{VERSION}.txt")
     if model_info is None:
       return
 
-    update_model_lists(model_info, release, params)
-    if not started and not boot_run:
-      params.put_bool_nonblocking("ModelsDownloaded", are_all_models_downloaded(params, params_memory))
-    if not boot_run:
-      return
-
-    handle_model_deletion(params)
-    validate_current_model(params, params_memory)
-    copy_default_model()
+    update_model_params(model_info, release, params)
+    params.put_bool_nonblocking("ModelsDownloaded", are_all_models_downloaded(repo_url, params, params_memory))
   except subprocess.CalledProcessError as e:
     print(f"Failed to update models. Error: {e}")
-    return
