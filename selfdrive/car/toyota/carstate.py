@@ -191,6 +191,9 @@ class CarState(CarStateBase):
         self.distance_button = cp.vl["SDSU"]["FD_BUTTON"]
 
     # FrogPilot CarState functions
+    if self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
+      self.lkas_previously_enabled = self.lkas_enabled
+      self.lkas_enabled = self.lkas_hud.get("LKAS_STATUS") == 1
 
     # ZSS Support - Credit goes to the DragonPilot team!
     if self.CP.flags & ToyotaFlags.ZSS and self.zss_threshold_count < ZSS_THRESHOLD_COUNT:
