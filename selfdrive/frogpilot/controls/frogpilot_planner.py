@@ -102,7 +102,7 @@ class FrogPilotPlanner:
       self.lead_departing = False
 
     self.model_length = modelData.position.x[TRAJECTORY_SIZE - 1]
-    self.road_curvature = abs(float(calculate_road_curvature(modelData, v_ego)))
+    self.road_curvature = calculate_road_curvature(modelData, v_ego) if v_ego > CRUISING_SPEED else 1
 
     if frogpilot_toggles.random_events:
       self.taking_curve_quickly = v_ego > (1 / self.road_curvature)**0.5 * 2 > CRUISING_SPEED * 2 and abs(carState.steeringAngleDeg) > 30
