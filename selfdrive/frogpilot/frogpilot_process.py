@@ -11,7 +11,7 @@ from openpilot.system.hardware import HARDWARE
 from openpilot.selfdrive.frogpilot.controls.frogpilot_planner import FrogPilotPlanner
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import backup_toggles, is_url_pingable
 from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import FrogPilotVariables
-from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_model, update_models
+from openpilot.selfdrive.frogpilot.controls.lib.model_manager import DEFAULT_MODEL, DEFAULT_MODEL_NAME, download_all_models, download_model, update_models
 from openpilot.selfdrive.frogpilot.controls.lib.theme_manager import ThemeManager
 
 OFFLINE = log.DeviceState.NetworkType.none
@@ -78,6 +78,7 @@ def frogpilot_thread():
   frogpilot_planner = FrogPilotPlanner()
   theme_manager = ThemeManager()
 
+  downloading_all_models = False
   downloading_model = False
   is_release = FrogPilotVariables.release
   run_time_checks = False
@@ -108,6 +109,14 @@ def frogpilot_thread():
         downloading_model = True
     else:
       downloading_model = False
+
+    if params_memory.get_bool("DownloadAllModels"):
+      downloading_model = True
+      if not downloading_all_models:
+        threading.Thread(target=download_all_models, args=(params, params_memory,)).start()
+        downloading_all_models = True
+    else:
+      downloading_all_models = False
 
     if FrogPilotVariables.toggles_updated:
       update_toggles = True

@@ -20,6 +20,13 @@ from openpilot.system.hardware import HARDWARE
 
 MODELS_PATH = "/data/models"
 
+def delete_file(file):
+  if os.path.exists(file):
+    os.remove(file)
+    print(f"Deleted file: {file}")
+  else:
+    print(f"File not found: {file}")
+
 def is_url_pingable(url, timeout=5):
   try:
     urllib.request.urlopen(url, timeout=timeout)

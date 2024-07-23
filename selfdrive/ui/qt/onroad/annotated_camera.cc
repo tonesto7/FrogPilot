@@ -353,7 +353,8 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s, c
 
     // Copy of the acceleration vector
     std::vector<float> acceleration;
-    for (int i = 0; i < acceleration_const.size(); i++) {
+    acceleration.reserve(acceleration_const.size());
+    for (size_t i = 0; i < acceleration_const.size(); i++) {
       acceleration.push_back(acceleration_const[i]);
     }
 
@@ -411,7 +412,7 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s, c
   painter.setBrush(bg);
   painter.drawPolygon(scene.track_vertices);
 
-  if (scene.show_stopping_point && scene.red_light && v_ego > 1) {
+  if (scene.show_stopping_point && scene.red_light && v_ego > 1 && !(conditionalStatus == 1 || conditionalStatus == 3 || conditionalStatus == 5)) {
     QPointF last_point = scene.track_vertices.last();
 
     QPointF adjusted_point = last_point - QPointF(stopSignImg.width() / 2, stopSignImg.height());

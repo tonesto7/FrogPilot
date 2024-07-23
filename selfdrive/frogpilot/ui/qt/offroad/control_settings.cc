@@ -28,8 +28,6 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
   std::string branch = params.get("GitBranch");
   isRelease = branch == "FrogPilot";
 
-  QDir modelDir("/data/models/");
-
   const std::vector<std::tuple<QString, QString, QString, QString>> controlToggles {
     {"AlwaysOnLateral", tr("Always on Lateral"), tr("Maintain openpilot lateral control when the brake or gas pedals are used.\n\nDeactivation occurs only through the 'Cruise Control' button."), "../frogpilot/assets/toggle_icons/icon_always_on_lateral.png"},
     {"AlwaysOnLateralLKAS", tr("Control Via LKAS Button"), tr("Enable or disable 'Always On Lateral' by clicking your 'LKAS' button."), ""},
@@ -125,6 +123,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"ReviewScores", tr("Review Model Scores"), tr("View the scores FrogPilot and yourself have rated the openpilot models."), ""},
     {"DeleteModel", tr("Delete Model"), "", ""},
     {"DownloadModel", tr("Download Model"), "", ""},
+    {"DownloadAllModels", tr("Download All Models"), "", ""},
     {"SelectModel", tr("Select Model"), "", ""},
     {"ResetCalibrations", tr("Reset Model Calibrations"), tr("Reset all of the model calibrations."), ""},
 
@@ -252,7 +251,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       controlToggle = customPersonalitiesToggle;
     } else if (param == "PersonalityInfo") {
       ButtonControl *personalitiesInfoBtn = new ButtonControl(title, tr("VIEW"), desc);
-      connect(personalitiesInfoBtn, &ButtonControl::clicked, [=]() {
+      QObject::connect(personalitiesInfoBtn, &ButtonControl::clicked, [=]() {
         const std::string txt = util::read_file("../frogpilot/ui/qt/offroad/personalities_info.txt");
         ConfirmationDialog::rich(QString::fromStdString(txt), this);
       });
@@ -402,14 +401,25 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       QObject::connect(modelManagementToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
         availableModelNames = QString::fromStdString(params.get("AvailableModelsNames")).split(",");
         availableModels = QString::fromStdString(params.get("AvailableModels")).split(",");
-        modelsDownloaded = params.getBool("ModelsDownloaded");
-
-        selectModelBtn->setEnabled(!params.getBool("ModelRandomizer"));
 
         modelManagementOpen = true;
         for (auto &[key, toggle] : toggles) {
           toggle->setVisible(modelManagementKeys.find(key.c_str()) != modelManagementKeys.end());
         }
+
+        std::string currentModel = params.get("Model") + ".thneed";
+        QStringList modelFiles = modelDir.entryList({"*.thneed"}, QDir::Files);
+        modelFiles.removeAll(QString::fromStdString(currentModel));
+
+        haveModelsDownloaded = modelFiles.size() > 1;
+        deleteModelBtn->setVisible(haveModelsDownloaded);
+
+        modelsDownloaded = params.getBool("ModelsDownloaded");
+        downloadAllModelsBtn->setVisible(!modelsDownloaded);
+        downloadModelBtn->setVisible(!modelsDownloaded);
+
+        selectModelBtn->setEnabled(!params.getBool("ModelRandomizer"));
+
         openParentToggle();
       });
       controlToggle = modelManagementToggle;
@@ -425,7 +435,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     } else if (param == "ManageBlacklistedModels") {
       std::vector<QString> blacklistOptions{tr("ADD"), tr("REMOVE")};
       FrogPilotButtonsControl *manageModelsBlacklistBtn = new FrogPilotButtonsControl(title, desc, "", blacklistOptions);
-      connect(manageModelsBlacklistBtn, &FrogPilotButtonsControl::buttonClicked, [=](int id) {
+      QObject::connect(manageModelsBlacklistBtn, &FrogPilotButtonsControl::buttonClicked, [=](int id) {
         QStringList blacklistedModels = QString::fromStdString(params.get("BlacklistedModels")).split(",", QString::SkipEmptyParts);
         QMap<QString, QString> labelToModelMap;
         QStringList selectableModels, deletableModels;
@@ -472,7 +482,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       controlToggle = reinterpret_cast<AbstractControl*>(manageModelsBlacklistBtn);
     } else if (param == "ResetScores") {
       ButtonControl *resetScoresBtn = new ButtonControl(title, tr("RESET"), desc);
-      connect(resetScoresBtn, &ButtonControl::clicked, [=]() {
+      QObject::connect(resetScoresBtn, &ButtonControl::clicked, [=]() {
         if (FrogPilotConfirmationDialog::yesorno(tr("Are you sure you want to completely reset all of your model scores?"), this)) {
           for (QString model : availableModelNames) {
             QString cleanedModelName = processModelName(model);
@@ -488,7 +498,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       controlToggle = reinterpret_cast<AbstractControl*>(resetScoresBtn);
     } else if (param == "ReviewScores") {
       ButtonControl *reviewScoresBtn = new ButtonControl(title, tr("VIEW"), desc);
-      connect(reviewScoresBtn, &ButtonControl::clicked, [=]() {
+      QObject::connect(reviewScoresBtn, &ButtonControl::clicked, [=]() {
         for (LabelControl *label : labelControls) {
           label->setVisible(true);
         }
@@ -519,22 +529,36 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         if (!selectedModel.isEmpty() && ConfirmationDialog::confirm(tr("Are you sure you want to delete this model?"), tr("Delete"), this)) {
           std::thread([=]() {
             modelsDownloaded = false;
+            downloadAllModelsBtn->setVisible(!modelsDownloaded);
+            downloadModelBtn->setVisible(!modelsDownloaded);
+            update();
+
             params.putBoolNonBlocking("ModelsDownloaded", false);
 
             deleteModelBtn->setValue(tr("Deleting..."));
             deleteModelBtn->setEnabled(false);
+            downloadAllModelsBtn->setEnabled(false);
             downloadModelBtn->setEnabled(false);
             selectModelBtn->setEnabled(false);
 
             QFile::remove(modelDir.absoluteFilePath(labelToFileMap[selectedModel]));
 
             deleteModelBtn->setEnabled(true);
+            downloadAllModelsBtn->setEnabled(true);
             downloadModelBtn->setEnabled(true);
             selectModelBtn->setEnabled(true);
             deleteModelBtn->setValue(tr("Deleted!"));
 
             std::this_thread::sleep_for(std::chrono::seconds(3));
             deleteModelBtn->setValue("");
+
+            std::string currentModel = params.get("Model") + ".thneed";
+            QStringList modelFiles = modelDir.entryList({"*.thneed"}, QDir::Files);
+            modelFiles.removeAll(QString::fromStdString(currentModel));
+
+            haveModelsDownloaded = modelFiles.size() > 1;
+            deleteModelBtn->setVisible(haveModelsDownloaded);
+            update();
           }).detach();
         }
       });
@@ -561,14 +585,16 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
           paramsMemory.put("ModelDownloadProgress", "0%");
 
           downloadModelBtn->setValue(tr("Downloading %1...").arg(modelToDownload.remove(QRegularExpression("[🗺️👀📡]")).trimmed()));
+
           deleteModelBtn->setEnabled(false);
+          downloadAllModelsBtn->setEnabled(false);
           downloadModelBtn->setEnabled(false);
           selectModelBtn->setEnabled(false);
 
           QTimer *progressTimer = new QTimer(this);
           progressTimer->setInterval(100);
 
-          connect(progressTimer, &QTimer::timeout, this, [=]() {
+          QObject::connect(progressTimer, &QTimer::timeout, this, [=]() {
             QString progress = QString::fromStdString(paramsMemory.get("ModelDownloadProgress"));
             bool downloadFailed = progress.contains(QRegularExpression("exists|Failed|offline", QRegularExpression::CaseInsensitiveOption));
 
@@ -577,8 +603,13 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
             }
 
             if (progress == "Downloaded!" || downloadFailed) {
-              modelDownloading = false;
               bool lastModelDownloaded = !downloadFailed;
+
+              if (!downloadFailed) {
+                haveModelsDownloaded = true;
+                deleteModelBtn->setVisible(haveModelsDownloaded);
+                update();
+              }
 
               if (lastModelDownloaded) {
                 for (const QString &model : availableModels) {
@@ -587,18 +618,12 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
                     break;
                   }
                 }
-                if (lastModelDownloaded) {
-                  modelsDownloaded = true;
-                  params.putBoolNonBlocking("ModelsDownloaded", true);
-                }
               }
 
               deleteModelBtn->setEnabled(true);
+              downloadAllModelsBtn->setEnabled(!lastModelDownloaded);
+              downloadModelBtn->setEnabled(!lastModelDownloaded);
               selectModelBtn->setEnabled(true);
-
-              if (!lastModelDownloaded) {
-                downloadModelBtn->setEnabled(true);
-              }
 
               downloadModelBtn->setValue(progress);
               paramsMemory.remove("ModelDownloadProgress");
@@ -607,8 +632,16 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
               progressTimer->deleteLater();
 
               QTimer::singleShot(downloadFailed ? 10000 : 3000, this, [=]() {
-                if (paramsMemory.get("ModelToDownload").empty() || downloadFailed) {
-                  downloadModelBtn->setValue("");
+                modelDownloading = false;
+                downloadModelBtn->setValue("");
+
+                if (lastModelDownloaded) {
+                  modelsDownloaded = true;
+                  downloadAllModelsBtn->setVisible(!modelsDownloaded);
+                  downloadModelBtn->setVisible(!modelsDownloaded);
+                  update();
+
+                  params.putBoolNonBlocking("ModelsDownloaded", modelsDownloaded);
                 }
               });
             }
@@ -617,6 +650,12 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         }
       });
       controlToggle = reinterpret_cast<AbstractControl*>(downloadModelBtn);
+    } else if (param == "DownloadAllModels") {
+      downloadAllModelsBtn = new ButtonControl(title, tr("DOWNLOAD"), desc);
+      QObject::connect(downloadAllModelsBtn, &ButtonControl::clicked, [=]() {
+        startDownloadAllModels();
+      });
+      controlToggle = reinterpret_cast<AbstractControl*>(downloadAllModelsBtn);
     } else if (param == "SelectModel") {
       selectModelBtn = new ButtonControl(title, tr("SELECT"), desc);
       QObject::connect(selectModelBtn, &ButtonControl::clicked, [=]() {
@@ -668,7 +707,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
       controlToggle = reinterpret_cast<AbstractControl*>(selectModelBtn);
     } else if (param == "ResetCalibrations") {
       ButtonControl *resetCalibrationsBtn = new ButtonControl(title, tr("RESET"), desc);
-      connect(resetCalibrationsBtn, &ButtonControl::clicked, [=]() {
+      QObject::connect(resetCalibrationsBtn, &ButtonControl::clicked, [=]() {
         if (FrogPilotConfirmationDialog::yesorno(tr("Are you sure you want to completely reset all of your model calibrations?"), this)) {
           for (QString model : availableModelNames) {
             QString cleanedModelName = processModelName(model);
@@ -954,6 +993,11 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
 
   QObject::connect(static_cast<ToggleControl*>(toggles["ModelRandomizer"]), &ToggleControl::toggleFlipped, [this](bool state) {
     selectModelBtn->setEnabled(!state);
+    if (state && !modelsDownloaded) {
+      if (FrogPilotConfirmationDialog::yesorno(tr("The 'Model Randomizer' only works with downloaded models. Do you want to download all the driving models?"), this)) {
+        startDownloadAllModels();
+      }
+    }
   });
 
   FrogPilotParamValueControl *trafficFollowToggle = static_cast<FrogPilotParamValueControl*>(toggles["TrafficFollow"]);
@@ -1063,7 +1107,9 @@ void FrogPilotControlsPanel::showEvent(QShowEvent *event) {
 void FrogPilotControlsPanel::updateState(const UIState &s) {
   if (!isVisible()) return;
 
-  downloadModelBtn->setEnabled(s.scene.online && !modelsDownloaded && !modelDownloading);
+  downloadAllModelsBtn->setEnabled(s.scene.online && !modelDownloading && !modelsDownloaded);
+  downloadModelBtn->setEnabled(s.scene.online && !modelDownloading && !modelsDownloaded);
+
   started = s.scene.started;
 }
 
@@ -1214,6 +1260,60 @@ void FrogPilotControlsPanel::updateMetric() {
   pauseLateralToggle->refresh();
   setSpeedOffsetToggle->refresh();
   stoppingDistanceToggle->refresh();
+}
+
+void FrogPilotControlsPanel::startDownloadAllModels() {
+  modelDownloading = true;
+
+  paramsMemory.putBoolNonBlocking("DownloadAllModels", true);
+
+  downloadAllModelsBtn->setValue(tr("Downloading models..."));
+
+  deleteModelBtn->setEnabled(false);
+  downloadAllModelsBtn->setEnabled(false);
+  downloadModelBtn->setEnabled(false);
+  selectModelBtn->setEnabled(false);
+
+  QTimer *checkDownloadTimer = new QTimer(this);
+  checkDownloadTimer->setInterval(100);
+
+  QObject::connect(checkDownloadTimer, &QTimer::timeout, this, [=]() {
+    QString progress = QString::fromStdString(paramsMemory.get("ModelDownloadProgress"));
+    bool downloadFailed = progress.contains(QRegularExpression("exists|Failed|offline", QRegularExpression::CaseInsensitiveOption));
+
+    if (!progress.isEmpty() && progress != "0%") {
+      downloadAllModelsBtn->setValue(progress);
+    }
+
+    if (progress == "All models downloaded!" || downloadFailed) {
+      if (!downloadFailed) {
+        haveModelsDownloaded = true;
+        deleteModelBtn->setVisible(haveModelsDownloaded);
+        update();
+      }
+
+      QTimer::singleShot(3000, this, [=]() {
+        modelDownloading = false;
+        downloadAllModelsBtn->setValue("");
+        modelsDownloaded = params.getBool("ModelsDownloaded");
+        downloadAllModelsBtn->setVisible(!modelsDownloaded);
+        downloadModelBtn->setVisible(!modelsDownloaded);
+        update();
+      });
+
+      deleteModelBtn->setEnabled(true);
+      downloadAllModelsBtn->setEnabled(downloadFailed);
+      downloadModelBtn->setEnabled(downloadFailed);
+      selectModelBtn->setEnabled(true);
+
+      paramsMemory.remove("ModelDownloadProgress");
+
+      checkDownloadTimer->stop();
+      checkDownloadTimer->deleteLater();
+    }
+  });
+
+  checkDownloadTimer->start();
 }
 
 QString FrogPilotControlsPanel::processModelName(const QString &modelName) {

@@ -23,12 +23,14 @@ private:
   void hideSubSubToggles();
   void hideToggles();
   void showEvent(QShowEvent *event) override;
+  void startDownloadAllModels();
   void updateCarToggles();
   void updateMetric();
   void updateModelLabels();
   void updateState(const UIState &s);
 
   ButtonControl *deleteModelBtn;
+  ButtonControl *downloadAllModelsBtn;
   ButtonControl *downloadModelBtn;
   ButtonControl *selectModelBtn;
 
@@ -44,7 +46,7 @@ private:
   std::set<QString> laneChangeKeys = {"LaneChangeTime", "LaneDetectionWidth", "MinimumLaneChangeSpeed", "NudgelessLaneChange", "OneLaneChange"};
   std::set<QString> lateralTuneKeys = {"ForceAutoTune", "NNFF", "NNFFLite", "SteerRatio", "TacoTune", "TurnDesires"};
   std::set<QString> longitudinalTuneKeys = {"AccelerationProfile", "AggressiveAcceleration", "DecelerationProfile", "LeadDetectionThreshold", "SmoothBraking", "StoppingDistance", "TrafficMode"};
-  std::set<QString> modelManagementKeys = {"AutomaticallyUpdateModels", "ModelRandomizer", "DeleteModel", "DownloadModel", "SelectModel", "ResetCalibrations"};
+  std::set<QString> modelManagementKeys = {"AutomaticallyUpdateModels", "ModelRandomizer", "DeleteModel", "DownloadModel", "DownloadAllModels", "SelectModel", "ResetCalibrations"};
   std::set<QString> modelRandomizerKeys = {"ManageBlacklistedModels", "ResetScores", "ReviewScores"};
   std::set<QString> mtscKeys = {"DisableMTSCSmoothing", "MTSCAggressiveness", "MTSCCurvatureCheck"};
   std::set<QString> qolKeys = {"CustomCruise", "CustomCruiseLong", "ForceStandstill", "MapGears", "PauseLateralSpeed", "ReverseCruise", "SetSpeedOffset"};
@@ -61,6 +63,8 @@ private:
 
   QList<LabelControl*> labelControls;
 
+  QDir modelDir{"/data/models/"};
+
   Params params;
   Params paramsMemory{"/dev/shm/params"};
   Params paramsStorage{"/persist/params"};
@@ -73,6 +77,7 @@ private:
   bool hasOpenpilotLongitudinal;
   bool hasPCMCruise;
   bool hasDashSpeedLimits;
+  bool haveModelsDownloaded;
   bool isGM;
   bool isHKGCanFd;
   bool isMetric = params.getBool("IsMetric");

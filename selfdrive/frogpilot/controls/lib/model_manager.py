@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 import shutil
 import subprocess
@@ -7,7 +8,7 @@ import urllib.request
 
 from openpilot.common.basedir import BASEDIR
 
-from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH, is_url_pingable
+from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_functions import MODELS_PATH, delete_file, is_url_pingable
 
 VERSION = "v4"
 
@@ -37,17 +38,11 @@ def get_remote_file_size(url):
     print(f"Error fetching file size: {e}")
     return None
 
-def delete_file(file):
-  if os.path.exists(file):
-    os.remove(file)
-    print(f"Deleted file: {file}")
-  else:
-    print(f"File not found: {file}")
-
 def handle_download_error(destination, error_message, error, params_memory):
   print(f"Error occurred: {error}")
   params_memory.put("ModelDownloadProgress", error_message)
   params_memory.remove("ModelToDownload")
+  params_memory.remove("DownloadAllModels")
   delete_file(destination)
 
 def verify_download(file_path, model_url):
@@ -132,13 +127,13 @@ def fetch_models(url):
     print(f"Failed to update models list. Error: {e}")
     return None
 
-def update_model_params(model_info, release, params):
+def update_model_params(model_info, is_release, params):
   available_models = []
   available_model_names = []
 
   for model in model_info:
     model_name = model[0]
-    if not (release and model_name in STAGING_MODELS):
+    if not (is_release and model_name in STAGING_MODELS):
       available_models.append(model_name)
       available_model_names.append(model[1])
 
@@ -180,16 +175,29 @@ def are_all_models_downloaded(repo_url, params, params_memory):
     model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
     model_url = f"{repo_url}Models/{model}.thneed"
 
-    if not os.path.exists(model_path) or not verify_download(model_path, model_url):
+    if os.path.exists(model_path):
       if automatically_update_models:
-        delete_file(model_path)
+        remote_file_size = get_remote_file_size(model_url)
+        local_file_size = os.path.getsize(model_path)
+
+        if remote_file_size is not None and remote_file_size != local_file_size:
+          print(f"Model {model} is outdated. Local size: {local_file_size}, Remote size: {remote_file_size}. Re-downloading...")
+          delete_file(model_path)
+          while params_memory.get("ModelToDownload", encoding='utf-8') is not None:
+            time.sleep(1)
+          params_memory.put("ModelToDownload", model)
+          all_models_downloaded = False
+    else:
+      if automatically_update_models:
         while params_memory.get("ModelToDownload", encoding='utf-8') is not None:
           time.sleep(1)
+        print(f"Model {model} is missing. Re-downloading...")
         params_memory.put("ModelToDownload", model)
       all_models_downloaded = False
+
   return all_models_downloaded
 
-def update_models(downloading_model, release, params, params_memory, boot_run=True):
+def update_models(downloading_model, is_release, params, params_memory, boot_run=True):
   try:
     if downloading_model:
       return
@@ -206,7 +214,39 @@ def update_models(downloading_model, release, params, params_memory, boot_run=Tr
     if model_info is None:
       return
 
-    update_model_params(model_info, release, params)
+    update_model_params(model_info, is_release, params)
     params.put_bool_nonblocking("ModelsDownloaded", are_all_models_downloaded(repo_url, params, params_memory))
   except subprocess.CalledProcessError as e:
     print(f"Failed to update models. Error: {e}")
+
+def download_all_models(params, params_memory):
+  copy_default_model()
+
+  repo_url = get_repository_url()
+  if repo_url is None:
+    print("Repository URL not available.")
+    return
+
+  available_models = params.get("AvailableModels", encoding='utf-8').split(',')
+  available_model_names = params.get("AvailableModelsNames", encoding='utf-8').split(',')
+
+  for model in available_models:
+    model_path = os.path.join(MODELS_PATH, f"{model}.thneed")
+    if not os.path.exists(model_path):
+      model_index = available_models.index(model)
+      model_name = available_model_names[model_index]
+      cleaned_model_name = re.sub(r'[🗺️👀📡]', '', model_name).strip()
+      print(f"Downloading model: {cleaned_model_name}")
+      params_memory.put("ModelToDownload", model)
+      params_memory.put("ModelDownloadProgress", f"Downloading {cleaned_model_name}...")
+      while params_memory.get("ModelToDownload", encoding='utf-8') is not None:
+        time.sleep(1)
+
+  all_downloaded = False
+  while not all_downloaded:
+    all_downloaded = all([os.path.exists(os.path.join(MODELS_PATH, f"{model}.thneed")) for model in available_models])
+    time.sleep(1)
+
+  params_memory.put("ModelDownloadProgress", "All models downloaded!")
+  params_memory.remove("DownloadAllModels")
+  params.put_bool_nonblocking("ModelsDownloaded", True)

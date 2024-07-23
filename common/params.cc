@@ -291,6 +291,7 @@ std::unordered_map<std::string, uint32_t> keys = {
     {"DisableVTSCSmoothing", PERSISTENT | FROGPILOT_STORAGE | FROGPILOT_CONTROLS},
     {"DisengageVolume", PERSISTENT | FROGPILOT_STORAGE | FROGPILOT_VISUALS},
     {"DoToggleReset", PERSISTENT},
+    {"DownloadAllModels", PERSISTENT},
     {"DragonPilotTune", PERSISTENT | FROGPILOT_STORAGE | FROGPILOT_VEHICLES},
     {"DriveRated", CLEAR_ON_ONROAD_TRANSITION},
     {"DriverCamera", PERSISTENT | FROGPILOT_STORAGE | FROGPILOT_VISUALS},
