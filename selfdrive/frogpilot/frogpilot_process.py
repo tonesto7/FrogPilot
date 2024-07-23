@@ -28,7 +28,7 @@ def automatic_update_check(started, params):
   elif update_state_idle:
     os.system("pkill -SIGUSR1 -f system.updated.updated")
 
-def time_checks(automatic_updates, deviceState, downloading_model, is_release, now, started, params, params_memory):
+def time_checks(automatic_updates, deviceState, is_release, now, started, params, params_memory):
   if deviceState.networkType == OFFLINE:
     return
 
@@ -40,7 +40,7 @@ def time_checks(automatic_updates, deviceState, downloading_model, is_release, n
     automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
-  update_models(downloading_model, is_release, params, params_memory, False)
+  update_models(is_release, params, params_memory, False)
 
 def update_maps(now, params, params_memory):
   maps_selected = params.get("MapsSelected", encoding='utf8')
@@ -111,7 +111,6 @@ def frogpilot_thread():
       downloading_model = False
 
     if params_memory.get_bool("DownloadAllModels"):
-      downloading_model = True
       if not downloading_all_models:
         threading.Thread(target=download_all_models, args=(params, params_memory,)).start()
         downloading_all_models = True
@@ -134,8 +133,8 @@ def frogpilot_thread():
 
     if now.second == 0:
       run_time_checks = True
-    elif run_time_checks or not time_validated:
-      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, downloading_model, is_release, now, started, params, params_memory,)).start()
+    elif (run_time_checks or not time_validated) and not (downloading_model or downloading_all_models):
+      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, is_release, now, started, params, params_memory,)).start()
       run_time_checks = False
 
       if not time_validated:
@@ -143,7 +142,7 @@ def frogpilot_thread():
         if not time_validated:
           continue
         else:
-          threading.Thread(target=update_models, args=(downloading_model, is_release, params, params_memory,)).start()
+          threading.Thread(target=update_models, args=(is_release, params, params_memory,)).start()
 
       theme_manager.update_holiday()
 

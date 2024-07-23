@@ -127,48 +127,8 @@ def fetch_models(url):
     print(f"Failed to update models list. Error: {e}")
     return None
 
-def update_model_params(model_info, is_release, params):
-  available_models = []
-  available_model_names = []
-
-  for model in model_info:
-    model_name = model[0]
-    if not (is_release and model_name in STAGING_MODELS):
-      available_models.append(model_name)
-      available_model_names.append(model[1])
-
-  params.put_nonblocking("AvailableModels", ','.join(available_models))
-  params.put_nonblocking("AvailableModelsNames", ','.join(available_model_names))
-  print("Models list updated successfully.")
-
-def validate_models(params):
-  current_model = params.get("Model", encoding='utf-8')
-  current_model_name = params.get("ModelName", encoding='utf-8')
-  if "(Default)" in current_model_name and current_model_name != DEFAULT_MODEL_NAME:
-    params.put_nonblocking("ModelName", current_model_name.replace(" (Default)", ""))
-
-  available_models = params.get("AvailableModels", encoding='utf-8').split(',')
-  for model_file in os.listdir(MODELS_PATH):
-    if model_file.endswith('.thneed') and model_file[:-7] not in available_models:
-      if model_file == current_model:
-        params.put_nonblocking("Model", DEFAULT_MODEL)
-        params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
-      delete_file(os.path.join(MODELS_PATH, model_file))
-      print(f"Deleted model file: {model_file}")
-
-def copy_default_model():
-  default_model_path = os.path.join(MODELS_PATH, f"{DEFAULT_MODEL}.thneed")
-  if not os.path.exists(default_model_path):
-    source_path = os.path.join(BASEDIR, "selfdrive/modeld/models/supercombo.thneed")
-    if os.path.exists(source_path):
-      shutil.copyfile(source_path, default_model_path)
-      print(f"Copied default model from {source_path} to {default_model_path}")
-    else:
-      print(f"Source default model not found at {source_path}. Exiting...")
-
-def are_all_models_downloaded(repo_url, params, params_memory):
+def are_all_models_downloaded(available_models, repo_url, params, params_memory):
   automatically_update_models = params.get_bool("AutomaticallyUpdateModels")
-  available_models = params.get("AvailableModels", encoding='utf-8').split(',')
   all_models_downloaded = True
 
   for model in available_models:
@@ -197,11 +157,50 @@ def are_all_models_downloaded(repo_url, params, params_memory):
 
   return all_models_downloaded
 
-def update_models(downloading_model, is_release, params, params_memory, boot_run=True):
-  try:
-    if downloading_model:
-      return
+def update_model_params(model_info, is_release, repo_url, params, params_memory):
+  available_models = []
+  available_model_names = []
 
+  for model in model_info:
+    model_name = model[0]
+    if not (is_release and model_name in STAGING_MODELS):
+      available_models.append(model_name)
+      available_model_names.append(model[1])
+
+  params.put_nonblocking("AvailableModels", ','.join(available_models))
+  params.put_nonblocking("AvailableModelsNames", ','.join(available_model_names))
+  print("Models list updated successfully.")
+
+  if available_models is not None:
+    params.put_bool_nonblocking("ModelsDownloaded", are_all_models_downloaded(available_models, repo_url, params, params_memory))
+
+def validate_models(params):
+  current_model = params.get("Model", encoding='utf-8')
+  current_model_name = params.get("ModelName", encoding='utf-8')
+  if "(Default)" in current_model_name and current_model_name != DEFAULT_MODEL_NAME:
+    params.put_nonblocking("ModelName", current_model_name.replace(" (Default)", ""))
+
+  available_models = params.get("AvailableModels", encoding='utf-8').split(',')
+  for model_file in os.listdir(MODELS_PATH):
+    if model_file.endswith('.thneed') and model_file[:-7] not in available_models:
+      if model_file == current_model:
+        params.put_nonblocking("Model", DEFAULT_MODEL)
+        params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
+      delete_file(os.path.join(MODELS_PATH, model_file))
+      print(f"Deleted model file: {model_file}")
+
+def copy_default_model():
+  default_model_path = os.path.join(MODELS_PATH, f"{DEFAULT_MODEL}.thneed")
+  if not os.path.exists(default_model_path):
+    source_path = os.path.join(BASEDIR, "selfdrive/modeld/models/supercombo.thneed")
+    if os.path.exists(source_path):
+      shutil.copyfile(source_path, default_model_path)
+      print(f"Copied default model from {source_path} to {default_model_path}")
+    else:
+      print(f"Source default model not found at {source_path}. Exiting...")
+
+def update_models(is_release, params, params_memory, boot_run=True):
+  try:
     if boot_run:
       copy_default_model()
       validate_models(params)
@@ -214,8 +213,7 @@ def update_models(downloading_model, is_release, params, params_memory, boot_run
     if model_info is None:
       return
 
-    update_model_params(model_info, is_release, params)
-    params.put_bool_nonblocking("ModelsDownloaded", are_all_models_downloaded(repo_url, params, params_memory))
+    update_model_params(model_info, is_release, repo_url, params, params_memory)
   except subprocess.CalledProcessError as e:
     print(f"Failed to update models. Error: {e}")
 

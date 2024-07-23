@@ -21,11 +21,13 @@ from openpilot.system.hardware import HARDWARE
 MODELS_PATH = "/data/models"
 
 def delete_file(file):
-  if os.path.exists(file):
+  try:
     os.remove(file)
     print(f"Deleted file: {file}")
-  else:
+  except FileNotFoundError:
     print(f"File not found: {file}")
+  except Exception as e:
+    print(f"An error occurred: {e}")
 
 def is_url_pingable(url, timeout=5):
   try:
