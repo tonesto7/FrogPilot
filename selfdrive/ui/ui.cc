@@ -317,18 +317,19 @@ void ui_update_params(UIState *s) {
   auto params = Params();
   s->scene.is_metric = params.getBool("IsMetric");
   s->scene.map_on_left = params.getBool("NavSettingLeftSide");
+
+  ui_update_frogpilot_params(s, params);
 }
 
-void ui_update_frogpilot_params(UIState *s) {
+void ui_update_frogpilot_params(UIState *s, Params &params) {
   UIScene &scene = s->scene;
-  Params params = Params();
 
   auto carParams = params.get("CarParamsPersistent");
-  if (!carParams.empty() && !scene.started) {
+  if (!carParams.empty()) {
     AlignedBuffer aligned_buf;
     capnp::FlatArrayMessageReader cmsg(aligned_buf.align(carParams.data(), carParams.size()));
     cereal::CarParams::Reader CP = cmsg.getRoot<cereal::CarParams>();
-    scene.longitudinal_control = CP.getOpenpilotLongitudinalControl() && !params.getBool("DisableOpenpilotLongitudinal");
+    scene.longitudinal_control = hasLongitudinalControl(CP);
   }
 
   bool always_on_lateral = params.getBool("AlwaysOnLateral");
@@ -509,7 +510,7 @@ UIState::UIState(QObject *parent) : QObject(parent) {
   // FrogPilot variables
   wifi = new WifiManager(this);
 
-  ui_update_frogpilot_params(this);
+  ui_update_params(this);
 }
 
 void UIState::update() {
@@ -528,7 +529,7 @@ void UIState::update() {
   if (paramsMemory.getBool("FrogPilotTogglesUpdated")) {
     update_toggles = true;
   } else if (update_toggles) {
-    ui_update_frogpilot_params(this);
+    ui_update_params(this);
     update_toggles = false;
   }
 

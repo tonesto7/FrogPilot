@@ -15,6 +15,7 @@
 #include "common/params.h"
 #include "common/timing.h"
 #include "selfdrive/ui/qt/network/wifi_manager.h"
+#include "selfdrive/ui/qt/util.h"
 #include "system/hardware/hw.h"
 
 #include "selfdrive/frogpilot/ui/qt/widgets/frogpilot_controls.h"
@@ -363,4 +364,4 @@ void update_line_data(const UIState *s, const cereal::XYZTData::Reader &line,
                       float y_off, float z_off, QPolygonF *pvd, int max_idx, bool allow_invert);
 
 // FrogPilot functions
-void ui_update_frogpilot_params(UIState *s);
+void ui_update_frogpilot_params(UIState *s, Params &params);

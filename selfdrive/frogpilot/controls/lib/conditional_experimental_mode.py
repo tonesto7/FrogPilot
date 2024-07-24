@@ -34,7 +34,7 @@ class ConditionalExperimentalMode:
       self.experimental_mode = self.status_value in {2, 4, 6} or carState.standstill and self.experimental_mode
 
   def check_conditions(self, carState, forcing_stop, frogpilotNavigation, modelData, tracking_lead, v_ego, v_lead, frogpilot_toggles):
-    if (frogpilot_toggles.conditional_limit_lead > v_ego and tracking_lead) or (frogpilot_toggles.conditional_limit > v_ego and not tracking_lead):
+    if (frogpilot_toggles.conditional_limit_lead > v_ego >= 1 and tracking_lead) or (frogpilot_toggles.conditional_limit > v_ego >= 1 and not tracking_lead):
       self.status_value = 7 if tracking_lead else 8
       return True
 

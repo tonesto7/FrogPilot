@@ -749,7 +749,6 @@ void AnnotatedCameraWidget::showEvent(QShowEvent *event) {
   CameraWidget::showEvent(event);
 
   ui_update_params(uiState());
-  ui_update_frogpilot_params(uiState());
   prev_draw_t = millis_since_boot();
 }
 
@@ -836,7 +835,7 @@ void AnnotatedCameraWidget::initializeFrogPilotWidgets() {
 
 void AnnotatedCameraWidget::paintFrogPilotWidgets(QPainter &painter, const UIScene &scene) {
   if (is_metric || useSI) {
-    accelerationUnit = tr(" m/s²");
+    accelerationUnit = tr("m/s²");
     leadDistanceUnit = tr(mapOpen ? "m" : "meters");
     leadSpeedUnit = useSI ? tr("m/s") : tr("kph");
 
@@ -1291,7 +1290,7 @@ void AnnotatedCameraWidget::drawStatusBar(QPainter &p) {
   p.setOpacity(1.0);
   p.drawRoundedRect(statusBarRect, 30, 30);
 
-  static const std::map<int, QString> conditionalStatusMap = {
+  std::map<int, QString> conditionalStatusMap = {
     {0, tr("Conditional Experimental Mode ready")},
     {1, tr("Conditional Experimental overridden")},
     {2, tr("Experimental Mode manually activated")},
@@ -1299,8 +1298,8 @@ void AnnotatedCameraWidget::drawStatusBar(QPainter &p) {
     {4, tr("Experimental Mode manually activated")},
     {5, tr("Conditional Experimental overridden")},
     {6, tr("Experimental Mode manually activated")},
-    {7, tr("Experimental Mode activated for") + (mapOpen ? tr(" low speed") : tr(" speed being less than ") + QString::number(conditionalSpeedLead) + leadSpeedUnit)},
-    {8, tr("Experimental Mode activated for") + (mapOpen ? tr(" low speed") : tr(" speed being less than ") + QString::number(conditionalSpeed) + leadSpeedUnit)},
+    {7, tr("Experimental Mode activated for") + (mapOpen ? tr(" low speed") : tr(" speed being less than ") + QString::number(conditionalSpeedLead) + (is_metric ? tr("kph") : tr("mph")))},
+    {8, tr("Experimental Mode activated for") + (mapOpen ? tr(" low speed") : tr(" speed being less than ") + QString::number(conditionalSpeed) + (is_metric ? tr("kph") : tr("mph")))},
     {9, tr("Experimental Mode activated for turn") + (mapOpen ? "" : tr(" / lane change"))},
     {10, tr("Experimental Mode activated for intersection")},
     {11, tr("Experimental Mode activated for upcoming turn")},

@@ -244,7 +244,7 @@ void FrogPilotVehiclesPanel::updateCarToggles() {
     auto carFingerprint = CP.getCarFingerprint();
 
     hasExperimentalOpenpilotLongitudinal = CP.getExperimentalLongitudinalAvailable();
-    hasOpenpilotLongitudinal = CP.getOpenpilotLongitudinalControl() && !params.getBool("DisableOpenpilotLongitudinal");
+    hasOpenpilotLongitudinal = hasLongitudinalControl(CP);
     hasSNG = CP.getMinEnableSpeed() <= 0;
     isGMPCMCruise = CP.getCarName() == "gm" && CP.getPcmCruise();
     isImpreza = carFingerprint == "SUBARU_IMPREZA";

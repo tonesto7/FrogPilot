@@ -145,7 +145,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
     {"SLCFallback", tr("Fallback Method"), tr("Choose your fallback method when there is no speed limit available."), ""},
     {"SLCOverride", tr("Override Method"), tr("Choose your preferred method to override the current speed limit."), ""},
     {"SLCPriority", tr("Priority Order"), tr("Configure the speed limit priority order."), ""},
-    {"SLCQOL", tr("Quality of Life Settings"), tr("Manage toggles related to 'Speed Limit Controller's quality of life features."), ""},
+    {"SLCQOL", tr("Quality of Life"), tr("Manage toggles related to 'Speed Limit Controller's quality of life features."), ""},
     {"SLCConfirmation", tr("Confirm New Speed Limits"), tr("Don't automatically start using the new speed limit until it's been manually confirmed."), ""},
     {"ForceMPHDashboard", tr("Force MPH From Dashboard Readings"), tr("Force MPH readings from the dashboard. Only use this if you live in an area where the speed limits from your dashboard are in KPH, but you use MPH."), ""},
     {"SLCLookaheadHigher", tr("Prepare For Higher Speed Limits"), tr("Set a 'lookahead' value to prepare for upcoming speed limits higher than your current speed limit using the data stored in 'Open Street Maps'."), ""},
@@ -1130,7 +1130,7 @@ void FrogPilotControlsPanel::updateCarToggles() {
     hasCommaNNFFSupport = checkCommaNNFFSupport(carFingerprint);
     hasDashSpeedLimits = carName == "hyundai" || carName == "toyota";
     hasNNFFLog = checkNNFFLogFileExists(carFingerprint);
-    hasOpenpilotLongitudinal = CP.getOpenpilotLongitudinalControl() && !params.getBool("DisableOpenpilotLongitudinal");
+    hasOpenpilotLongitudinal = hasLongitudinalControl(CP);
     hasPCMCruise = CP.getPcmCruise();
     isGM = carName == "gm";
     isHKGCanFd = carName == "hyundai" && safetyModel == cereal::CarParams::SafetyModel::HYUNDAI_CANFD;

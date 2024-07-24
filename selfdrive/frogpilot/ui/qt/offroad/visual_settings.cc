@@ -382,7 +382,7 @@ void FrogPilotVisualsPanel::updateCarToggles() {
 
     hasAutoTune = (carName == "hyundai" || carName == "toyota") && CP.getLateralTuning().which() == cereal::CarParams::LateralTuning::TORQUE;
     hasBSM = CP.getEnableBsm();
-    hasOpenpilotLongitudinal = CP.getOpenpilotLongitudinalControl() && !params.getBool("DisableOpenpilotLongitudinal");
+    hasOpenpilotLongitudinal = hasLongitudinalControl(CP);
   } else {
     hasAutoTune = true;
     hasBSM = true;
