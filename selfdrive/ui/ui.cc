@@ -247,7 +247,7 @@ static void update_state(UIState *s) {
     auto controlsState = sm["controlsState"].getControlsState();
     scene.alert_size = controlsState.getAlertSize() == cereal::ControlsState::AlertSize::MID ? 350 : controlsState.getAlertSize() == cereal::ControlsState::AlertSize::SMALL ? 200 : 0;
     scene.enabled = controlsState.getEnabled();
-    scene.experimental_mode = controlsState.getExperimentalMode();
+    scene.experimental_mode = scene.enabled && controlsState.getExperimentalMode();
   }
   if (sm.updated("deviceState")) {
     auto deviceState = sm["deviceState"].getDeviceState();

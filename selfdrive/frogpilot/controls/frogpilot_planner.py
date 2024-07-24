@@ -1,5 +1,7 @@
 import cereal.messaging as messaging
 
+from cereal import car
+
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import clip, interp
 from openpilot.common.params import Params
@@ -17,12 +19,14 @@ from openpilot.selfdrive.frogpilot.controls.lib.frogpilot_variables import CITY_
 from openpilot.selfdrive.frogpilot.controls.lib.map_turn_speed_controller import MapTurnSpeedController
 from openpilot.selfdrive.frogpilot.controls.lib.speed_limit_controller import SpeedLimitController
 
+GearShifter = car.CarState.GearShifter
+
 A_CRUISE_MIN_ECO = A_CRUISE_MIN / 5
 A_CRUISE_MIN_SPORT = A_CRUISE_MIN / 2
-                  # MPH = [ 0.,  11,  22,  34,  45,  56,  89]
-A_CRUISE_MAX_BP_CUSTOM =  [ 0.,  5., 10., 15., 20., 25., 40.]
-A_CRUISE_MAX_VALS_ECO =   [1.4, 1.2, 1.0, 0.8, 0.6, 0.4, 0.2]
-A_CRUISE_MAX_VALS_SPORT = [3.0, 2.5, 2.0, 1.0, 0.9, 0.8, 0.6]
+                       # MPH = [ 0.,  11,  22,  34,  45,  56,  89]
+A_CRUISE_MAX_BP_CUSTOM =       [ 0.,  5., 10., 15., 20., 25., 40.]
+A_CRUISE_MAX_VALS_ECO =        [1.4, 1.2, 1.0, 0.8, 0.6, 0.4, 0.2]
+A_CRUISE_MAX_VALS_SPORT =      [3.0, 2.5, 2.0, 1.0, 0.9, 0.8, 0.6]
 A_CRUISE_MAX_VALS_SPORT_PLUS = [4.0, 3.5, 3.0, 1.0, 0.9, 0.8, 0.6]
 
 TARGET_LAT_A = 1.9
@@ -85,11 +89,14 @@ class FrogPilotPlanner:
     v_ego = max(carState.vEgo, 0)
     v_lead = self.lead_one.vLead
 
+    driving_gear = carState.gearShifter not in (GearShifter.neutral, GearShifter.park, GearShifter.reverse, GearShifter.unknown)
+
     distance_offset = max(frogpilot_toggles.increased_stopping_distance + min(CITY_SPEED_LIMIT - v_ego, 0), 0) if not frogpilotCarState.trafficModeActive else 0
     lead_distance = self.lead_one.dRel - distance_offset
     stopping_distance = STOP_DISTANCE + distance_offset
 
-    if (frogpilot_toggles.conditional_experimental_mode or frogpilot_toggles.force_stops or frogpilot_toggles.show_stopping_point) and controlsState.enabled:
+    run_cem = frogpilot_toggles.conditional_experimental_mode or frogpilot_toggles.force_stops or frogpilot_toggles.show_stopping_point
+    if run_cem and (controlsState.enabled or frogpilotCarControl.alwaysOnLateral) and driving_gear:
       self.cem.update(carState, self.forcing_stop, frogpilotNavigation, modelData, self.model_length, self.model_stopped, self.road_curvature, self.slower_lead, self.tracking_lead, v_ego, v_lead, frogpilot_toggles)
 
     check_lane_width = frogpilot_toggles.adjacent_lanes or frogpilot_toggles.blind_spot_path or frogpilot_toggles.lane_detection
@@ -100,7 +107,7 @@ class FrogPilotPlanner:
       self.lane_width_left = 0
       self.lane_width_right = 0
 
-    if frogpilot_toggles.lead_departing_alert and self.tracking_lead and carState.standstill:
+    if frogpilot_toggles.lead_departing_alert and self.tracking_lead and driving_gear and carState.standstill:
       if self.tracking_lead_distance == 0:
         self.tracking_lead_distance = lead_distance
 
@@ -116,7 +123,7 @@ class FrogPilotPlanner:
     self.override_force_stop |= carState.gasPressed
     self.override_force_stop |= frogpilot_toggles.force_stops and carState.standstill and self.tracking_lead
     self.override_force_stop |= frogpilotCarControl.resumePressed
-    self.road_curvature = calculate_road_curvature(modelData, v_ego) if v_ego > CRUISING_SPEED else 1
+    self.road_curvature = calculate_road_curvature(modelData, v_ego) if not carState.standstill else 1
 
     if frogpilot_toggles.random_events:
       self.taking_curve_quickly = v_ego > (1 / self.road_curvature)**0.5 * 2 > CRUISING_SPEED * 2 and abs(carState.steeringAngleDeg) > 30
