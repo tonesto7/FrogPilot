@@ -73,8 +73,7 @@ def calculate_road_curvature(modelData, v_ego):
 
 def backup_directory(src, dest, msg_success, msg_fail):
   os.makedirs(dest, exist_ok=True)
-  if not os.path.exists(dest):
-    run_cmd(['sudo', 'cp', '-a', src, dest], msg_success, msg_fail)
+  run_cmd(['sudo', 'cp', '-a', os.path.join(src, '.'), dest], msg_success, msg_fail)
 
 def cleanup_backups(directory, limit):
   backups = sorted(glob.glob(os.path.join(directory, "*_auto")), key=os.path.getmtime, reverse=True)
@@ -103,7 +102,7 @@ def backup_toggles(params, params_storage):
   cleanup_backups(backup_path, 9)
 
   backup_dir = f"{backup_path}/{datetime.datetime.now().strftime('%Y-%m-%d_%I-%M%p').lower()}_auto"
-  backup_directory("/data/params/.", backup_dir, f"Successfully backed up toggles to {backup_dir}.", f"Failed to backup toggles to {backup_dir}.")
+  backup_directory("/data/params/d", backup_dir, f"Successfully backed up toggles to {backup_dir}.", f"Failed to backup toggles to {backup_dir}.")
 
 def convert_params(params, params_storage):
   def convert_param(key, action_func):

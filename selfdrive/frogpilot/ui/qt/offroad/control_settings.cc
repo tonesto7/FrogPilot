@@ -418,8 +418,6 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         downloadAllModelsBtn->setVisible(!modelsDownloaded);
         downloadModelBtn->setVisible(!modelsDownloaded);
 
-        selectModelBtn->setEnabled(!params.getBool("ModelRandomizer"));
-
         openParentToggle();
       });
       controlToggle = modelManagementToggle;
@@ -528,6 +526,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
         QString selectedModel = MultiOptionDialog::getSelection(tr("Select a model to delete"), deletableModelLabels, "", this);
         if (!selectedModel.isEmpty() && ConfirmationDialog::confirm(tr("Are you sure you want to delete this model?"), tr("Delete"), this)) {
           std::thread([=]() {
+            modelDeleting = true;
             modelsDownloaded = false;
             downloadAllModelsBtn->setVisible(!modelsDownloaded);
             downloadModelBtn->setVisible(!modelsDownloaded);
@@ -536,21 +535,14 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
             params.putBoolNonBlocking("ModelsDownloaded", false);
 
             deleteModelBtn->setValue(tr("Deleting..."));
-            deleteModelBtn->setEnabled(false);
-            downloadAllModelsBtn->setEnabled(false);
-            downloadModelBtn->setEnabled(false);
-            selectModelBtn->setEnabled(false);
 
             QFile::remove(modelDir.absoluteFilePath(labelToFileMap[selectedModel]));
 
-            deleteModelBtn->setEnabled(true);
-            downloadAllModelsBtn->setEnabled(true);
-            downloadModelBtn->setEnabled(true);
-            selectModelBtn->setEnabled(true);
             deleteModelBtn->setValue(tr("Deleted!"));
 
-            std::this_thread::sleep_for(std::chrono::seconds(3));
+            std::this_thread::sleep_for(std::chrono::seconds(2));
             deleteModelBtn->setValue("");
+            modelDeleting = false;
 
             std::string currentModel = params.get("Model") + ".thneed";
             QStringList modelFiles = modelDir.entryList({"*.thneed"}, QDir::Files);
@@ -586,11 +578,6 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
 
           downloadModelBtn->setValue(tr("Downloading %1...").arg(modelToDownload.remove(QRegularExpression("[🗺️👀📡]")).trimmed()));
 
-          deleteModelBtn->setEnabled(false);
-          downloadAllModelsBtn->setEnabled(false);
-          downloadModelBtn->setEnabled(false);
-          selectModelBtn->setEnabled(false);
-
           QTimer *progressTimer = new QTimer(this);
           progressTimer->setInterval(100);
 
@@ -620,18 +607,13 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
                 }
               }
 
-              deleteModelBtn->setEnabled(true);
-              downloadAllModelsBtn->setEnabled(!lastModelDownloaded);
-              downloadModelBtn->setEnabled(!lastModelDownloaded);
-              selectModelBtn->setEnabled(true);
-
               downloadModelBtn->setValue(progress);
               paramsMemory.remove("ModelDownloadProgress");
 
               progressTimer->stop();
               progressTimer->deleteLater();
 
-              QTimer::singleShot(downloadFailed ? 10000 : 3000, this, [=]() {
+              QTimer::singleShot(downloadFailed ? 10000 : 2000, this, [=]() {
                 modelDownloading = false;
                 downloadModelBtn->setValue("");
 
@@ -992,7 +974,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
   }
 
   QObject::connect(static_cast<ToggleControl*>(toggles["ModelRandomizer"]), &ToggleControl::toggleFlipped, [this](bool state) {
-    selectModelBtn->setEnabled(!state);
+    modelRandomizer = state;
     if (state && !modelsDownloaded) {
       if (FrogPilotConfirmationDialog::yesorno(tr("The 'Model Randomizer' only works with downloaded models. Do you want to download all the driving models?"), this)) {
         startDownloadAllModels();
@@ -1102,13 +1084,18 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : FrogPil
 
 void FrogPilotControlsPanel::showEvent(QShowEvent *event) {
   disableOpenpilotLongitudinal = params.getBool("DisableOpenpilotLongitudinal");
+  modelRandomizer = params.getBool("ModelRandomizer");
 }
 
 void FrogPilotControlsPanel::updateState(const UIState &s) {
   if (!isVisible()) return;
 
-  downloadAllModelsBtn->setEnabled(s.scene.online && !modelDownloading && !modelsDownloaded);
-  downloadModelBtn->setEnabled(s.scene.online && !modelDownloading && !modelsDownloaded);
+  if (modelManagementOpen) {
+    deleteModelBtn->setEnabled(!modelDeleting && !modelDownloading);
+    downloadAllModelsBtn->setEnabled(s.scene.online && !modelDeleting && !modelDownloading && !modelsDownloaded);
+    downloadModelBtn->setEnabled(s.scene.online && !modelDeleting && !modelDownloading && !modelsDownloaded);
+    selectModelBtn->setEnabled(!modelDeleting && !modelDownloading && !modelRandomizer);
+  }
 
   started = s.scene.started;
 }
@@ -1269,11 +1256,6 @@ void FrogPilotControlsPanel::startDownloadAllModels() {
 
   downloadAllModelsBtn->setValue(tr("Downloading models..."));
 
-  deleteModelBtn->setEnabled(false);
-  downloadAllModelsBtn->setEnabled(false);
-  downloadModelBtn->setEnabled(false);
-  selectModelBtn->setEnabled(false);
-
   QTimer *checkDownloadTimer = new QTimer(this);
   checkDownloadTimer->setInterval(100);
 
@@ -1292,7 +1274,7 @@ void FrogPilotControlsPanel::startDownloadAllModels() {
         update();
       }
 
-      QTimer::singleShot(3000, this, [=]() {
+      QTimer::singleShot(2000, this, [=]() {
         modelDownloading = false;
         downloadAllModelsBtn->setValue("");
         modelsDownloaded = params.getBool("ModelsDownloaded");
@@ -1300,11 +1282,6 @@ void FrogPilotControlsPanel::startDownloadAllModels() {
         downloadModelBtn->setVisible(!modelsDownloaded);
         update();
       });
-
-      deleteModelBtn->setEnabled(true);
-      downloadAllModelsBtn->setEnabled(downloadFailed);
-      downloadModelBtn->setEnabled(downloadFailed);
-      selectModelBtn->setEnabled(true);
 
       paramsMemory.remove("ModelDownloadProgress");
 

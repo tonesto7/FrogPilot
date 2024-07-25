@@ -83,8 +83,10 @@ private:
   bool isMetric = params.getBool("IsMetric");
   bool isRelease;
   bool isToyota;
+  bool modelDeleting;
   bool modelDownloading;
   bool modelManagementOpen;
+  bool modelRandomizer;
   bool modelsDownloaded;
   bool slcOpen;
   bool started;
