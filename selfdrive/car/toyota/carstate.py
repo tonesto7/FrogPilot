@@ -223,7 +223,8 @@ class CarState(CarStateBase):
 
     if self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
       self.lkas_previously_enabled = self.lkas_enabled
-      self.lkas_enabled = self.lkas_hud.get("LKAS_STATUS") == 1
+      lkas_status = self.lkas_hud.get("SET_ME_X02") == 1
+      self.lkas_enabled = self.lkas_previously_enabled != lkas_status
 
     self.pcm_accel_net = cp.vl["PCM_CRUISE"]["ACCEL_NET"]
     self.pcm_neutral_force = cp.vl["PCM_CRUISE"]["NEUTRAL_FORCE"]
