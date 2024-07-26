@@ -215,6 +215,7 @@ class FrogPilotVariables:
       self.params_memory.put("CurrentModelName", current_model_name)
     else:
       toggle.model = current_model
+      current_model_name = available_model_names.split(',')[available_models.split(',').index(toggle.model)]
     model_exists = os.path.exists(os.path.join(MODELS_PATH, f"{toggle.model}.thneed"))
     if model_exists:
       toggle.part_model_param = process_model_name(current_model_name)

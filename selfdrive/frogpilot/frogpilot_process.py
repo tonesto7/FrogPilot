@@ -16,6 +16,13 @@ from openpilot.selfdrive.frogpilot.controls.lib.theme_manager import ThemeManage
 
 OFFLINE = log.DeviceState.NetworkType.none
 
+download_all_models_lock = threading.Lock()
+download_model_lock = threading.Lock()
+time_checks_lock = threading.Lock()
+update_models_lock = threading.Lock()
+
+running_threads = {}
+
 def automatic_update_check(started, params):
   update_available = params.get_bool("UpdaterFetchAvailable")
   update_ready = params.get_bool("UpdateAvailable")
@@ -40,7 +47,9 @@ def time_checks(automatic_updates, deviceState, is_release, now, started, params
     automatic_update_check(started, params)
 
   update_maps(now, params, params_memory)
-  update_models(is_release, params, params_memory, False)
+
+  with update_models_lock:
+    update_models(is_release, params, params_memory, False)
 
 def update_maps(now, params, params_memory):
   maps_selected = params.get("MapsSelected", encoding='utf8')
@@ -66,6 +75,13 @@ def update_maps(now, params, params_memory):
     params_memory.put_nonblocking("OSMDownloadLocations", maps_selected)
     params.put_nonblocking("LastMapsUpdate", todays_date)
 
+def run_thread_with_lock(name, lock, target, args):
+  if name not in running_threads or not running_threads[name].is_alive():
+    with lock:
+      thread = threading.Thread(target=target, args=args)
+      thread.start()
+      running_threads[name] = thread
+
 def frogpilot_thread():
   config_realtime_process(5, Priority.CTRL_LOW)
 
@@ -78,8 +94,6 @@ def frogpilot_thread():
   frogpilot_planner = FrogPilotPlanner()
   theme_manager = ThemeManager()
 
-  downloading_all_models = False
-  downloading_model = False
   is_release = FrogPilotVariables.release
   run_time_checks = False
   time_validated = system_time_valid()
@@ -104,45 +118,36 @@ def frogpilot_thread():
 
     model_to_download = params_memory.get("ModelToDownload", encoding='utf-8')
     if model_to_download is not None:
-      if not downloading_model:
-        threading.Thread(target=download_model, args=(model_to_download, params_memory,)).start()
-        downloading_model = True
-    else:
-      downloading_model = False
+      run_thread_with_lock("download_model", download_model_lock, download_model, (model_to_download, params_memory))
 
     if params_memory.get_bool("DownloadAllModels"):
-      if not downloading_all_models:
-        threading.Thread(target=download_all_models, args=(params, params_memory,)).start()
-        downloading_all_models = True
-    else:
-      downloading_all_models = False
+      run_thread_with_lock("download_all_models", download_all_models_lock, download_all_models, (params, params_memory))
 
     if FrogPilotVariables.toggles_updated:
       update_toggles = True
     elif update_toggles:
-      threading.Thread(target=FrogPilotVariables.update_frogpilot_params, args=(started,)).start()
+      run_thread_with_lock("update_frogpilot_params", threading.Lock(), FrogPilotVariables.update_frogpilot_params, (started,))
 
       if not frogpilot_toggles.model_manager:
         params.put_nonblocking("Model", DEFAULT_MODEL)
         params.put_nonblocking("ModelName", DEFAULT_MODEL_NAME)
 
       if time_validated and not started:
-        threading.Thread(target=backup_toggles, args=(params, params_storage,)).start()
+        run_thread_with_lock("backup_toggles", threading.Lock(), backup_toggles, (params, params_storage))
 
       update_toggles = False
 
     if now.second == 0:
       run_time_checks = True
-    elif (run_time_checks or not time_validated) and not (downloading_model or downloading_all_models):
-      threading.Thread(target=time_checks, args=(frogpilot_toggles.automatic_updates, deviceState, is_release, now, started, params, params_memory,)).start()
+    elif run_time_checks or not time_validated:
+      run_thread_with_lock("time_checks", time_checks_lock, time_checks, (frogpilot_toggles.automatic_updates, deviceState, is_release, now, started, params, params_memory))
       run_time_checks = False
 
       if not time_validated:
         time_validated = system_time_valid()
         if not time_validated:
           continue
-        else:
-          threading.Thread(target=update_models, args=(is_release, params, params_memory,)).start()
+        run_thread_with_lock("update_models", update_models_lock, update_models, (is_release, params, params_memory))
 
       theme_manager.update_holiday()
 
